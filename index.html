@@ -41,7 +41,7 @@ const {useState,useEffect,useMemo,useRef,useCallback}=React;
 /* ── CONFIGURATION SUPABASE ── */
 const SUPABASE_URL = "https://vjeomepcepthulzygqfv.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZqZW9tZXBjZXB0aHVsenlncWZ2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA5MjkwOTMsImV4cCI6MjA5NjUwNTA5M30.805tzjwUxewEuSWkBOgmqVBGf4jzrKHaxGCsdyjLDmg";
-const supabase = Supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const supabaseClient = Supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 /* ── COULEURS ── */
 const AU='#e8b84b',TE='#00c9a7',VI='#9b72f5',RO='#ff5470',DIM='#7a7a9a';
@@ -100,7 +100,7 @@ const G0=[
   {id:21,nom:'Le Seigneur des Anneaux : Le destin de la communauté',langue:['VF'],extensions:'Non',listeExtensions:[],joueurs:['Solo','2','3','4','5'],types:['Coop'],mecaniques:["Placement d'ouvriers",'Dés','Cartes'],interaction:'Moyenne',temps:120,theme:'Fantasy',imageUrl:''},
   {id:22,nom:'Maudit Mot Dit',langue:['VF'],extensions:'Non',listeExtensions:[],joueurs:['3','4','5','6+'],types:['Competitif'],mecaniques:['Déduction'],interaction:'',temps:30,theme:'Autre',imageUrl:''},
   {id:23,nom:'Metal Gear Solid',langue:['VO'],extensions:'Non',listeExtensions:[],joueurs:['Solo','2','3','4'],types:['Coop','Campagne'],mecaniques:['Combat','Exploration'],interaction:'',temps:90,theme:'Moderne',imageUrl:''},
-  {id:24,nom:'Mindbug',langue:['VF'],extensions:'Non',listeExtensions:[],joueurs:['2'],types:['Competitif'],mecaniques:['Cartes'],interaction:'Forte',temps:15,theme:'Fantasy',imageUrl:''},
+  {id:24,nom:'Mindbug',langue:['VF'],extensions:'Non',listeExtensions:[],joueurs:['2'],types:['Competitif','Coup Bas'],mecaniques:['Cartes'],interaction:'Forte',temps:15,theme:'Fantasy',imageUrl:''},
   {id:25,nom:'Miniquest Adventures',langue:['VO'],extensions:'Non',listeExtensions:[],joueurs:['Solo','2','3','4'],types:['Coop'],mecaniques:['Combat','Dés'],interaction:'',temps:60,theme:'Fantasy',imageUrl:''},
   {id:26,nom:'Orcquest',langue:['VF'],extensions:'Non',listeExtensions:[],joueurs:['Solo','2','3','4','5','6+'],types:['Coop','Campagne'],mecaniques:['Dungeon Crawler','Combat','Exploration','Dés'],interaction:'',temps:60,theme:'Fantasy',imageUrl:''},
   {id:27,nom:'Pagan: Fate of Roanoke',langue:['VO'],extensions:'Oui',listeExtensions:[],joueurs:['2'],types:['Competitif'],mecaniques:['Deck builder','Déduction'],interaction:'Forte',temps:45,theme:'Horreur',imageUrl:''},
@@ -130,16 +130,32 @@ const P0=[
   {id:4,nom:'Elise',langue:['VF','VO'],niveau:'',types:[],interactions:[],tempsPref:[],themes:[]},
 ];
 
-/* ── TOAST ── */
-function showToast(msg,type='success'){
-  const c=document.getElementById('toast-container');
-  if(!c)return;
-  const col=type==='success'?'#00c9a7':type==='error'?'#ff5470':'#e8b84b';
-  const t=document.createElement('div');
-  t.style.cssText=`background:#121a2e;border:1px solid ${col}55;border-left:3px solid ${col};border-radius:8px;padding:10px 16px;font-size:12px;font-weight:700;color:${col};font-family:Nunito,sans-serif;animation:toastIn .25s ease;pointer-events:none;max-width:300px;`;
-  t.textContent=(type==='success'?'✓ ':type==='error'?'✗ ':'ℹ ')+msg;
-  c.appendChild(t);
-  setTimeout(()=>{t.style.animation='toastOut .3s ease forwards';setTimeout(()=>t.remove(),300);},2500);
+/* ── EXPORT / IMPORT JSON ── */
+function exportJSON(games,players){
+  const data={version:1,exported:new Date().toISOString(),games,players};
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download=`ludotheque_${new Date().toISOString().slice(0,10)}.json`;
+  a.click();URL.revokeObjectURL(url);
+  showToast('Sauvegarde JSON téléchargée !');
+}
+function importJSON(callback){
+  const fi=document.getElementById('file-input');
+  fi.onchange=e=>{
+    const file=e.target.files[0];if(!file)return;
+    const reader=new FileReader();
+    reader.onload=ev=>{
+      try{
+        const data=JSON.parse(ev.target.result);
+        if(!data.games||!data.players)throw new Error('Format invalide');
+        callback(data.games,data.players);
+        showToast(`${data.games.length} jeux et ${data.players.length} joueurs importés !`);
+      }catch(err){showToast('Fichier invalide : '+err.message,'error');}
+      fi.value='';
+    };
+    reader.readAsText(file);
+  };fi.click();
 }
 
 function newId(arr){return arr.length?Math.max(...arr.map(x=>x.id))+1:1;}
@@ -368,7 +384,7 @@ function PlayerCard({player,onEdit,onDelete,onClick}){
       player.tempsPref.length>0&&React.createElement('div',{},player.tempsPref.map(t=>React.createElement(Tag,{key:t,label:t,cat:'temps',small:true})))
     ),
     React.createElement('div',{style:{marginTop:8,fontSize:11,color:col,fontWeight:700,opacity:hov?1:0,transition:'opacity .2s'}},'🎯 Voir les jeux compatibles →'),
-    hov&&React.createElement('div',{style:{display:'flex',gap:5,marginTop:9,paddingTop:9,borderTop:`1px solid ${col}22` lattice},onClick:e=>e.stopPropagation()},
+    hov&&React.createElement('div',{style:{display:'flex',gap:5,marginTop:9,paddingTop:9,borderTop:`1px solid ${col}22`},onClick:e=>e.stopPropagation()},
       React.createElement(Btn,{small:true,variant:'secondary',onClick:()=>onEdit(player)},'✏️ Modifier'),
       React.createElement(Btn,{small:true,variant:'danger',onClick:() => onDelete(player.id)},'🗑 Supprimer')
     )
@@ -528,8 +544,8 @@ function App(){
   useEffect(() => {
     async function fetchData() {
       try {
-        const { data: gData, error: gErr } = await supabase.from('games').select('*');
-        const { data: pData, error: pErr } = await supabase.from('players').select('*');
+        const { data: gData, error: gErr } = await supabaseClient.from('games').select('*');
+        const { data: pData, error: pErr } = await supabaseClient.from('players').select('*');
         
         if (gData) setGames(gData);
         if (pData) setPlayers(pData);
@@ -547,7 +563,7 @@ function App(){
   const saveGame = async (f) => {
     const isNew = !f.id;
     const finalGame = { ...f, id: isNew ? newId(games) : f.id };
-    const { error } = await supabase.from('games').upsert(finalGame);
+    const { error } = await supabaseClient.from('games').upsert(finalGame);
     if (!error) {
       setGames(isNew ? [...games, finalGame] : games.map(g => g.id === f.id ? finalGame : g));
       showToast(isNew ? 'Jeu ajouté à la table !' : 'Fiche jeu modifiée !');
@@ -558,7 +574,7 @@ function App(){
 
   const deleteGame = async (id) => {
     if (!confirm('Supprimer ce jeu de la ludothèque ?')) return;
-    const { error } = await supabase.from('games').delete().eq('id', id);
+    const { error } = await supabaseClient.from('games').delete().eq('id', id);
     if (!error) {
       setGames(games.filter(g => g.id !== id));
       showToast('Jeu supprimé.');
@@ -571,7 +587,7 @@ function App(){
   const savePlayer = async (f) => {
     const isNew = !f.id;
     const finalPlayer = { ...f, id: isNew ? newId(players) : f.id };
-    const { error } = await supabase.from('players').upsert(finalPlayer);
+    const { error } = await supabaseClient.from('players').upsert(finalPlayer);
     if (!error) {
       setPlayers(isNew ? [...players, finalPlayer] : players.map(p => p.id === f.id ? finalPlayer : p));
       showToast(isNew ? 'Nouveau joueur enregistré !' : 'Fiche joueur mise à jour !');
@@ -582,7 +598,7 @@ function App(){
 
   const deletePlayer = async (id) => {
     if (!confirm('Supprimer ce compagnon de jeu ?')) return;
-    const { error } = await supabase.from('players').delete().eq('id', id);
+    const { error } = await supabaseClient.from('players').delete().eq('id', id);
     if (!error) {
       setPlayers(players.filter(p => p.id !== id));
       showToast('Compagnon effacé.');
@@ -594,8 +610,8 @@ function App(){
   /* ── BACKUPS & RESTAURATION ── */
   const handleImport = async (g, p) => {
     setLoading(true);
-    const { error: gErr } = await supabase.from('games').upsert(g);
-    const { error: pErr } = await supabase.from('players').upsert(p);
+    const { error: gErr } = await supabaseClient.from('games').upsert(g);
+    const { error: pErr } = await supabaseClient.from('players').upsert(p);
     if (!gErr && !pErr) {
       setGames(g); setPlayers(p);
       showToast('Restauration complète effectuée dans le Cloud !');
@@ -610,10 +626,10 @@ function App(){
   const handleReset = async () => {
     if (!confirm('Réinitialiser TOUTES les données distantes avec le catalogue par défaut ?')) return;
     setLoading(true);
-    await supabase.from('games').delete().neq('id', 0);
-    await supabase.from('players').delete().neq('id', 0);
-    await supabase.from('games').insert(G0);
-    await supabase.from('players').insert(P0);
+    await supabaseClient.from('games').delete().neq('id', 0);
+    await supabaseClient.from('players').delete().neq('id', 0);
+    await supabaseClient.from('games').insert(G0);
+    await supabaseClient.from('players').insert(P0);
     setGames(G0); setPlayers(P0);
     setLoading(false);
     showToast('Base de données initialisée !', 'info');
