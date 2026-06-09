@@ -384,7 +384,7 @@ function PlayerCard({player,onEdit,onDelete,onClick}){
       player.tempsPref.length>0&&React.createElement('div',{},player.tempsPref.map(t=>React.createElement(Tag,{key:t,label:t,cat:'temps',small:true})))
     ),
     React.createElement('div',{style:{marginTop:8,fontSize:11,color:col,fontWeight:700,opacity:hov?1:0,transition:'opacity .2s'}},'🎯 Voir les jeux compatibles →'),
-    hov&&React.createElement('div',{style:{display:'flex',gap:5,marginTop:9,paddingTop:9,borderTop:`1px solid ${col}22` lattice},onClick:e=>e.stopPropagation()},
+    hov&&React.createElement('div',{style:{display:'flex',gap:5,marginTop:9,paddingTop:9,borderTop:`1px solid ${col}22`},onClick:e=>e.stopPropagation()},
       React.createElement(Btn,{small:true,variant:'secondary',onClick:()=>onEdit(player)},'✏️ Modifier'),
       React.createElement(Btn,{small:true,variant:'danger',onClick:()=>onDelete(player.id)},'🗑 Supprimer')
     )
