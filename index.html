@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>🎲 Ludothèque</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800;900&family=Nunito:wght@400;600;700;800&display=swap"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#070a12;color:#e2ddd5;font-family:'Nunito',sans-serif;min-height:100vh}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:#070a12}
+::-webkit-scrollbar-thumb{background:#1c2240;border-radius:3px}
+select option{background:#111827;color:#e2ddd5}
+@keyframes slideIn{from{opacity:0;transform:translateX(32px)}to{opacity:1;transform:none}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes toastIn{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:none}}
+@keyframes toastOut{from{opacity:1}to{opacity:0;transform:translateY(20px)}}
+.panel-anim{animation:slideIn .22s ease}
+.fade-up{animation:fadeUp .18s ease}
+.spinner{display:inline-block;width:16px;height:16px;border:2px solid rgba(232,184,75,.3);border-top-color:#e8b84b;border-radius:50%;animation:spin .7s linear infinite}
+.tooltip-wrap{position:relative;display:inline-block}
+.tooltip-wrap .tooltip-box{position:absolute;bottom:calc(100% + 7px);left:50%;transform:translateX(-50%);background:#1a2035;border:1px solid rgba(232,184,75,.3);border-radius:8px;padding:10px 13px;width:280px;font-size:11px;color:#c8c0b0;line-height:1.6;z-index:9999;pointer-events:none;opacity:0;transition:opacity .15s;white-space:normal}
+.tooltip-wrap:hover .tooltip-box{opacity:1}
+.ext-tooltip{position:absolute;top:calc(100% + 6px);left:0;background:#1a2035;border:1px solid rgba(0,201,167,.3);border-radius:8px;padding:8px 12px;min-width:160px;font-size:11px;color:#c8c0b0;z-index:9999;white-space:nowrap;pointer-events:none}
+input[type=range]{accent-color:#e8b84b}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<div id="toast-container" style="position:fixed;bottom:22px;right:22px;z-index:9999;display:flex;flex-direction:column;gap:8px;pointer-events:none"></div>
+<input type="file" id="file-input" accept=".json" style="display:none"/>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+
+const {useState,useEffect,useMemo,useRef,useCallback}=React;
+
+/* ── CONFIGURATION SUPABASE ── */
+const SUPABASE_URL = "https://vjeomepcepthulzygqfv.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZqZW9tZXBjZXB0aHVsenlncWZ2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA5MjkwOTMsImV4cCI6MjA5NjUwNTA5M30.805tzjwUxewEuSWkBOgmqVBGf4jzrKHaxGCsdyjLDmg";
+const supabase = Supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+/* ── COULEURS ── */
+const AU='#e8b84b',TE='#00c9a7',VI='#9b72f5',RO='#ff5470',DIM='#7a7a9a';
+const BG='#070a12',SU='#0d1120',CA='#121a2e',BO='rgba(232,184,75,.18)';
+const TC={
+  langue:{c:VI,bg:'rgba(155,114,245,.14)',b:'rgba(155,114,245,.32)'},
+  types:{c:AU,bg:'rgba(232,184,75,.13)',b:'rgba(232,184,75,.32)'},
+  mecaniques:{c:TE,bg:'rgba(0,201,167,.11)',b:'rgba(0,201,167,.28)'},
+  theme:{c:RO,bg:'rgba(255,84,112,.11)',b:'rgba(255,84,112,.28)'},
+  joueurs:{c:'#34d399',bg:'rgba(52,211,153,.11)',b:'rgba(52,211,153,.28)'},
+  interaction:{c:'#fb923c',bg:'rgba(251,146,60,.11)',b:'rgba(251,146,60,.28)'},
+  temps:{c:'#60a5fa',bg:'rgba(96,165,250,.11)',b:'rgba(96,165,250,.28)'},
+  neutral:{c:DIM,bg:'rgba(122,122,154,.1)',b:'rgba(122,122,154,.22)'},
+};
+const OPT={
+  langue:['VF','VO','ENG OSEF'],
+  joueurs:['Solo','2','3','4','5','6+'],
+  types:['Ambiance','Campagne','Competitif','Coop','Coup Bas','En équipes','Un contre plusieurs'],
+  mecaniques:['Cartes','Combat','Deck builder','Déduction','Dés','Dungeon Crawler','Dextérité','Economie','Escarmouche','Exploration',"Placement d'ouvriers",'Ressources','Tower Defense'],
+  interaction:['Forte','Moyenne forte','Moyenne','Indirecte Moyenne','Indirecte'],
+  temps:[15,30,45,60,90,120],
+  theme:['Antique','Espace','Fantasy','Horreur','Moderne','Autre','Western'],
+  niveau:['Débutant','Intermédiaire','Avancé'],
+  tempsPref:['Courts (≤60min)','Moyens (60-120min)','Longs (+120min)'],
+};
+const INTERACTION_DESC={
+  'Forte':'Confrontation-baston, communication, coopération, négociation, party game, équipes',
+  'Moyenne forte':'Communication, négociation, confrontation mais ne constitue pas le core-concept du jeu',
+  'Moyenne':'Équilibre entre gestion, développement et interaction directe',
+  'Indirecte Moyenne':"Quelques échanges possibles, blocages mais peu d'interactions directes",
+  'Indirecte':'La course aux points, à la victoire est la seule interaction',
+};
+
+/* ── DONNÉES PAR DÉFAUT (FALLBACK) ── */
+const G0=[
+  {id:1,nom:'6:Siege',langue:['VF'],extensions:'Oui',listeExtensions:[],joueurs:['2','4'],types:['Competitif'],mecaniques:['Escarmouche','Dés'],interaction:'Forte',temps:60,theme:'Moderne',imageUrl:''},
+  {id:2,nom:'7 Wonders Duel',langue:['VF'],extensions:'Non',listeExtensions:[],joueurs:['2'],types:['Competitif'],mecaniques:['Economie','Cartes'],interaction:'Indirecte Moyenne',temps:30,theme:'Antique',imageUrl:''},
+  {id:3,nom:"Aeon's End",langue:['VF'],extensions:'Non',listeExtensions:[],joueurs:['Solo','2','3','4'],types:['Coop'],mecaniques:['Deck builder'],interaction:'',temps:60,theme:'Fantasy',imageUrl:''},
+  {id:4,nom:'Beast',langue:['VF'],extensions:'Non',listeExtensions:[],joueurs:['2','3','4'],types:['Un contre plusieurs'],mecaniques:['Cartes','Déduction'],interaction:'',temps:90,theme:'Fantasy',imageUrl:''},
+  {id:5,nom:'Binding of Isaac: Four Souls',langue:['VF'],extensions:'Oui',listeExtensions:[],joueurs:['2','3','4'],types:['Coop','Competitif','Coup Bas'],mecaniques:['Cartes'],interaction:'Moyenne',temps:45,theme:'Autre',imageUrl:''},
+  {id:6,nom:'Bloodborne',langue:['VF','VO'],extensions:'Oui',listeExtensions:[],joueurs:['Solo','2','3','4'],types:['Coop','Campagne'],mecaniques:['Dungeon Crawler','Combat','Deck builder','Exploration'],interaction:'Moyenne forte',temps:60,theme:'Horreur',imageUrl:''},
+  {id:7,nom:'Codenames',langue:['VF'],extensions:'Non',listeExtensions:[],joueurs:['2','3','4','5','6+'],types:['Competitif','En équipes'],mecaniques:['Déduction'],interaction:'Forte',temps:15,theme:'Autre',imageUrl:''},
+  {id:8,nom:'Colt Express',langue:['VF'],extensions:'Non',listeExtensions:[],joueurs:['2','3','4','5','6+'],types:['Competitif'],mecaniques:['Combat','Cartes'],interaction:'Indirecte Moyenne',temps:45,theme:'Western',imageUrl:''},
+  {id:9,nom:'Cthulhu: Death may Die',langue:['VF','VO'],extensions:'Oui',listeExtensions:[],joueurs:['Solo','2','3','4','5'],types:['Coop'],mecaniques:['Dungeon Crawler','Combat','Exploration'],interaction:'Moyenne forte',temps:90,theme:'Horreur',imageUrl:''},
+  {id:10,nom:'Darkest Dungeon',langue:['VF'],extensions:'Oui',listeExtensions:[],joueurs:['Solo','2','3','4'],types:['Coop','Campagne'],mecaniques:['Dungeon Crawler','Combat','Dés'],interaction:'',temps:120,theme:'Horreur',imageUrl:''},
+  {id:11,nom:'Drop Drive',langue:['VO'],extensions:'Oui',listeExtensions:[],joueurs:['2','3','4'],types:['Competitif'],mecaniques:['Ressources','Exploration'],interaction:'Indirecte',temps:60,theme:'Espace',imageUrl:''},
+  {id:12,nom:'Dungeon Fighters',langue:['VF'],extensions:'Non',listeExtensions:[],joueurs:['Solo','2','3','4','5','6+'],types:['Coop','Ambiance'],mecaniques:['Dés','Dextérité'],interaction:'Indirecte',temps:60,theme:'Fantasy',imageUrl:''},
+  {id:13,nom:'Dungeons of Draggmar',langue:['VO'],extensions:'Non',listeExtensions:[],joueurs:['Solo','2','3','4'],types:['Competitif'],mecaniques:['Ressources','Cartes'],interaction:'',temps:30,theme:'Horreur',imageUrl:''},
+  {id:14,nom:'Hidden Leaders',langue:['VF'],extensions:'Non',listeExtensions:[],joueurs:['2','3','4','5','6+'],types:['Competitif'],mecaniques:['Cartes','Déduction'],interaction:'',temps:30,theme:'Fantasy',imageUrl:''},
+  {id:15,nom:'Joking Hazard',langue:['ENG OSEF'],extensions:'Non',listeExtensions:[],joueurs:['3','4','5','6+'],types:['Ambiance'],mecaniques:['Cartes'],interaction:'',temps:45,theme:'Autre',imageUrl:''},
+  {id:16,nom:'Karak',langue:['VF'],extensions:'Oui',listeExtensions:[],joueurs:['2','3','4','5'],types:['Competitif'],mecaniques:['Dungeon Crawler','Combat','Dés'],interaction:'Indirecte Moyenne',temps:45,theme:'Fantasy',imageUrl:''},
+  {id:17,nom:'Karak II',langue:['VF'],extensions:'Non',listeExtensions:[],joueurs:['2','3','4','5'],types:['Competitif'],mecaniques:['Combat','Ressources','Exploration','Dés'],interaction:'Indirecte Moyenne',temps:60,theme:'Fantasy',imageUrl:''},
+  {id:18,nom:'Keep the Heroes Out',langue:['VF'],extensions:'Oui',listeExtensions:[],joueurs:['Solo','2','3','4'],types:['Coop'],mecaniques:['Deck builder','Tower Defense'],interaction:'Moyenne forte',temps:45,theme:'Fantasy',imageUrl:''},
+  {id:19,nom:'Kelp',langue:['VO'],extensions:'Oui',listeExtensions:[],joueurs:['2'],types:['Competitif'],mecaniques:['Combat','Cartes','Dés'],interaction:'Forte',temps:60,theme:'Autre',imageUrl:''},
+  {id:20,nom:'Kraken Attack',langue:['VF'],extensions:'Non',listeExtensions:[],joueurs:['Solo','2','3','4'],types:['Coop'],mecaniques:['Cartes','Tower Defense'],interaction:'Indirecte',temps:30,theme:'Autre',imageUrl:''},
+  {id:21,nom:'Le Seigneur des Anneaux : Le destin de la communauté',langue:['VF'],extensions:'Non',listeExtensions:[],joueurs:['Solo','2','3','4','5'],types:['Coop'],mecaniques:["Placement d'ouvriers",'Dés','Cartes'],interaction:'Moyenne',temps:120,theme:'Fantasy',imageUrl:''},
+  {id:22,nom:'Maudit Mot Dit',langue:['VF'],extensions:'Non',listeExtensions:[],joueurs:['3','4','5','6+'],types:['Competitif'],mecaniques:['Déduction'],interaction:'',temps:30,theme:'Autre',imageUrl:''},
+  {id:23,nom:'Metal Gear Solid',langue:['VO'],extensions:'Non',listeExtensions:[],joueurs:['Solo','2','3','4'],types:['Coop','Campagne'],mecaniques:['Combat','Exploration'],interaction:'',temps:90,theme:'Moderne',imageUrl:''},
+  {id:24,nom:'Mindbug',langue:['VF'],extensions:'Non',listeExtensions:[],joueurs:['2'],types:['Competitif'],mecaniques:['Cartes'],interaction:'Forte',temps:15,theme:'Fantasy',imageUrl:''},
+  {id:25,nom:'Miniquest Adventures',langue:['VO'],extensions:'Non',listeExtensions:[],joueurs:['Solo','2','3','4'],types:['Coop'],mecaniques:['Combat','Dés'],interaction:'',temps:60,theme:'Fantasy',imageUrl:''},
+  {id:26,nom:'Orcquest',langue:['VF'],extensions:'Non',listeExtensions:[],joueurs:['Solo','2','3','4','5','6+'],types:['Coop','Campagne'],mecaniques:['Dungeon Crawler','Combat','Exploration','Dés'],interaction:'',temps:60,theme:'Fantasy',imageUrl:''},
+  {id:27,nom:'Pagan: Fate of Roanoke',langue:['VO'],extensions:'Oui',listeExtensions:[],joueurs:['2'],types:['Competitif'],mecaniques:['Deck builder','Déduction'],interaction:'Forte',temps:45,theme:'Horreur',imageUrl:''},
+  {id:28,nom:'Pigeon pigeon',langue:['VF'],extensions:'Non',listeExtensions:[],joueurs:['2','3','4','5','6+'],types:['Ambiance','En équipes'],mecaniques:['Déduction'],interaction:'Moyenne',temps:30,theme:'Autre',imageUrl:''},
+  {id:29,nom:'Radlands',langue:['VF'],extensions:'Non',listeExtensions:[],joueurs:['2'],types:['Competitif','Coup Bas'],mecaniques:['Cartes'],interaction:'',temps:30,theme:'Autre',imageUrl:''},
+  {id:30,nom:'Redwood',langue:['VF'],extensions:'Oui',listeExtensions:[],joueurs:['Solo','2','3','4'],types:['Competitif'],mecaniques:['Ressources','Dextérité'],interaction:'Indirecte Moyenne',temps:60,theme:'Autre',imageUrl:''},
+  {id:31,nom:'Resist!',langue:['VF'],extensions:'Non',listeExtensions:[],joueurs:['Solo'],types:['Campagne'],mecaniques:['Cartes'],interaction:'',temps:45,theme:'Autre',imageUrl:''},
+  {id:32,nom:'Runar',langue:['VF'],extensions:'Oui',listeExtensions:[],joueurs:['Solo','2','3','4'],types:['Competitif'],mecaniques:['Escarmouche','Deck builder'],interaction:'',temps:60,theme:'Fantasy',imageUrl:''},
+  {id:33,nom:'Septima',langue:['VF'],extensions:'Oui',listeExtensions:[],joueurs:['Solo','2','3','4'],types:['Competitif'],mecaniques:['Ressources'],interaction:'',temps:90,theme:'Fantasy',imageUrl:''},
+  {id:34,nom:'Shadow Hunters',langue:['VF'],extensions:'Oui',listeExtensions:[],joueurs:['4','5','6+'],types:['En équipes','Ambiance'],mecaniques:['Dés','Déduction'],interaction:'',temps:30,theme:'Fantasy',imageUrl:''},
+  {id:35,nom:'So Clover',langue:['VF'],extensions:'Non',listeExtensions:[],joueurs:['3','4','5','6+'],types:['Ambiance'],mecaniques:
