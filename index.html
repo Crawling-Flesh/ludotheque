@@ -41,7 +41,7 @@ const {useState,useEffect,useMemo,useRef,useCallback}=React;
 /* ── CONFIGURATION SUPABASE ── */
 const SUPABASE_URL = "https://vjeomepcepthulzygqfv.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZqZW9tZXBjZXB0aHVsenlncWZ2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA5MjkwOTMsImV4cCI6MjA5NjUwNTA5M30.805tzjwUxewEuSWkBOgmqVBGf4jzrKHaxGCsdyjLDmg";
-const supabaseClient = Supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 /* ── COULEURS ── */
 const AU='#e8b84b',TE='#00c9a7',VI='#9b72f5',RO='#ff5470',DIM='#7a7a9a';
