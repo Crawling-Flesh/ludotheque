@@ -596,12 +596,25 @@ function App(){
     lsSave('jds_games',g);lsSave('jds_players',p);
   });
   const handleExport=()=>exportJSON(games,players);
-  const handleReset=()=>{
-    if(!confirm('Réinitialiser TOUTES les données ? Cette action est irréversible.'))return;
-    setGames(G0);setPlayers(P0);
-    lsSave('jds_games',G0);lsSave('jds_players',P0);
-    showToast('Données réinitialisées','info');
-  };
+const handleReset = async () => {
+  if (!confirm('Réinitialiser TOUTES les données distantes avec le catalogue par défaut ?')) return;
+  setLoading(true);
+
+  const { error: delGamesErr } = await supabaseClient.from('games').delete().neq('id', 0);
+  const { error: delPlayersErr } = await supabaseClient.from('players').delete().neq('id', 0);
+  const { error: insGamesErr } = await supabaseClient.from('games').insert(G0);
+  const { error: insPlayersErr } = await supabaseClient.from('players').insert(P0);
+
+  console.log("Rapport d'erreur suppression jeux :", delGamesErr);
+  console.log("Rapport d'erreur insertion jeux :", insGamesErr);
+
+  setLoading(false);
+  if (insGamesErr) {
+    showToast('Échec de l\'insertion : ' + insGamesErr.message, 'error');
+  } else {
+    showToast('Base de données initialisée !', 'info');
+  }
+};
 
   const nav=[
     {id:'collection',label:'Collection',icon:'🎲',count:games.length,col:AU,rgb:'232,184,75'},
