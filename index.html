@@ -100,7 +100,7 @@ const G0=[
   {id:21,nom:'Le Seigneur des Anneaux : Le destin de la communauté',langue:['VF'],extensions:'Non',listeExtensions:[],joueurs:['Solo','2','3','4','5'],types:['Coop'],mecaniques:["Placement d'ouvriers",'Dés','Cartes'],interaction:'Moyenne',temps:120,theme:'Fantasy',imageUrl:''},
   {id:22,nom:'Maudit Mot Dit',langue:['VF'],extensions:'Non',listeExtensions:[],joueurs:['3','4','5','6+'],types:['Competitif'],mecaniques:['Déduction'],interaction:'',temps:30,theme:'Autre',imageUrl:''},
   {id:23,nom:'Metal Gear Solid',langue:['VO'],extensions:'Non',listeExtensions:[],joueurs:['Solo','2','3','4'],types:['Coop','Campagne'],mecaniques:['Combat','Exploration'],interaction:'',temps:90,theme:'Moderne',imageUrl:''},
-  {id:24,nom:'Mindbug',langue:['VF'],extensions:'Non',listeExtensions:[],joueurs:['2'],types:['Competitif','Coup Bas'],mecaniques:['Cartes'],interaction:'Forte',temps:15,theme:'Fantasy',imageUrl:''},
+  {id:24,nom:'Mindbug',langue:['VF'],extensions:'Non',listeExtensions:[],joueurs:['2'],types:['Competitif'],mecaniques:['Cartes'],interaction:'Forte',temps:15,theme:'Fantasy',imageUrl:''},
   {id:25,nom:'Miniquest Adventures',langue:['VO'],extensions:'Non',listeExtensions:[],joueurs:['Solo','2','3','4'],types:['Coop'],mecaniques:['Combat','Dés'],interaction:'',temps:60,theme:'Fantasy',imageUrl:''},
   {id:26,nom:'Orcquest',langue:['VF'],extensions:'Non',listeExtensions:[],joueurs:['Solo','2','3','4','5','6+'],types:['Coop','Campagne'],mecaniques:['Dungeon Crawler','Combat','Exploration','Dés'],interaction:'',temps:60,theme:'Fantasy',imageUrl:''},
   {id:27,nom:'Pagan: Fate of Roanoke',langue:['VO'],extensions:'Oui',listeExtensions:[],joueurs:['2'],types:['Competitif'],mecaniques:['Deck builder','Déduction'],interaction:'Forte',temps:45,theme:'Horreur',imageUrl:''},
@@ -205,7 +205,7 @@ function Field({label,children,extra}){
 function Btn({children,onClick,variant='primary',small,disabled}){
   const vs={
     primary:{bg:AU,color:BG,bo:'none'},
-    secondary:{bg:'rgba(232,184,75,.1)',color:AU,bo:`1px solid rgba(232,184,75,.3)`},
+    secondary:{bg='rgba(232,184,75,.1)',color:AU,bo:`1px solid rgba(232,184,75,.3)`},
     danger:{bg:'rgba(255,84,112,.08)',color:RO,bo:`1px solid rgba(255,84,112,.3)`},
     ghost:{bg:'transparent',color:DIM,bo:`1px solid rgba(122,122,154,.2)`},
     teal:{bg:'rgba(0,201,167,.12)',color:TE,bo:`1px solid rgba(0,201,167,.3)`},
@@ -384,9 +384,9 @@ function PlayerCard({player,onEdit,onDelete,onClick}){
       player.tempsPref.length>0&&React.createElement('div',{},player.tempsPref.map(t=>React.createElement(Tag,{key:t,label:t,cat:'temps',small:true})))
     ),
     React.createElement('div',{style:{marginTop:8,fontSize:11,color:col,fontWeight:700,opacity:hov?1:0,transition:'opacity .2s'}},'🎯 Voir les jeux compatibles →'),
-    hov&&React.createElement('div',{style:{display:'flex',gap:5,marginTop:9,paddingTop:9,borderTop:`1px solid ${col}22`},onClick:e=>e.stopPropagation()},
+    hov&&React.createElement('div',{style:{display:'flex',gap:5,marginTop:9,paddingTop:9,borderTop:`1px solid ${col}22` lattice},onClick:e=>e.stopPropagation()},
       React.createElement(Btn,{small:true,variant:'secondary',onClick:()=>onEdit(player)},'✏️ Modifier'),
-      React.createElement(Btn,{small:true,variant:'danger',onClick:() => onDelete(player.id)},'🗑 Supprimer')
+      React.createElement(Btn,{small:true,variant:'danger',onClick:()=>onDelete(player.id)},'🗑 Supprimer')
     )
   );
 }
@@ -429,11 +429,20 @@ function MatchPanel({player,games,onClose}){
 }
 
 /* ── PAGE COLLECTION ── */
-function CollectionPage({games,onSave,onDelete}){
+function CollectionPage({games,setGames}){
   const [search,setSearch]=useState('');
   const [edit,setEdit]=useState(null);
   const filtered=useMemo(()=>games.filter(g=>g.nom.toLowerCase().includes(search.toLowerCase())).sort((a,b)=>a.nom.localeCompare(b.nom,'fr')),[games,search]);
-  
+  const save=(f)=>{
+    const next=f.id?games.map(g=>g.id===f.id?f:g):[...games,{...f,id:newId(games)}];
+    setGames(next);lsSave('jds_games',next);
+    showToast(f.id?'Jeu modifié !':'Jeu ajouté !');setEdit(null);
+  };
+  const del=(id)=>{
+    if(!confirm('Supprimer ce jeu ?'))return;
+    const next=games.filter(g=>g.id!==id);
+    setGames(next);lsSave('jds_games',next);showToast('Jeu supprimé');
+  };
   return React.createElement('div',{},
     React.createElement('div',{style:{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:20,flexWrap:'wrap',gap:10}},
       React.createElement('div',{},
@@ -445,17 +454,26 @@ function CollectionPage({games,onSave,onDelete}){
     React.createElement('input',{value:search,onChange:e=>setSearch(e.target.value),placeholder:'🔍 Rechercher un jeu...',style:{background:SU,color:'#e2ddd5',border:`1px solid ${BO}`,borderRadius:10,padding:'9px 14px',fontSize:13,width:'100%',outline:'none',marginBottom:20,fontFamily:'Nunito,sans-serif'}}),
     filtered.length===0&&React.createElement('div',{style:{textAlign:'center',color:DIM,padding:'50px 0',fontSize:13}},'Aucun jeu trouvé.'),
     React.createElement('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(280px,1fr))',gap:14}},
-      filtered.map(g=>React.createElement(GameCard,{key:g.id,game:g,onEdit:setEdit,onDelete:onDelete}))
+      filtered.map(g=>React.createElement(GameCard,{key:g.id,game:g,onEdit:setEdit,onDelete:del}))
     ),
-    edit!==null&&React.createElement(GameForm,{game:edit.id?edit:null,onSave:f=>{onSave(f);setEdit(null);},onClose:()=>setEdit(null)})
+    edit!==null&&React.createElement(GameForm,{game:edit.id?edit:null,onSave:save,onClose:()=>setEdit(null)})
   );
 }
 
 /* ── PAGE JOUEURS ── */
-function JoueursPage({players,games,onSave,onDelete}){
+function JoueursPage({players,setPlayers,games}){
   const [edit,setEdit]=useState(null);
   const [match,setMatch]=useState(null);
-
+  const save=(f)=>{
+    const next=f.id?players.map(p=>p.id===f.id?f:p):[...players,{...f,id:newId(players)}];
+    setPlayers(next);lsSave('jds_players',next);
+    showToast(f.id?'Joueur·euse modifié·e !':'Joueur·euse ajouté·e !');setEdit(null);
+  };
+  const del=(id)=>{
+    if(!confirm('Supprimer ce·tte joueur·euse ?'))return;
+    const next=players.filter(p=>p.id!==id);
+    setPlayers(next);lsSave('jds_players',next);showToast('Supprimé·e');
+  };
   return React.createElement('div',{},
     React.createElement('div',{style:{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8,flexWrap:'wrap',gap:10}},
       React.createElement('div',{},
@@ -465,9 +483,9 @@ function JoueursPage({players,games,onSave,onDelete}){
       React.createElement(Btn,{onClick:()=>setEdit({})},'+ Ajouter')
     ),
     React.createElement('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(250px,1fr))',gap:14,marginTop:20}},
-      [...players].sort((a,b)=>a.nom.localeCompare(b.nom,'fr')).map(p=>React.createElement(PlayerCard,{key:p.id,player:p,onEdit:setEdit,onDelete:() => onDelete(p.id),onClick:setMatch}))
+      [...players].sort((a,b)=>a.nom.localeCompare(b.nom,'fr')).map(p=>React.createElement(PlayerCard,{key:p.id,player:p,onEdit:setEdit,onDelete:del,onClick:setMatch}))
     ),
-    edit!==null&&React.createElement(PlayerForm,{player:edit.id?edit:null,onSave:f=>{onSave(f);setEdit(null);},onClose:()=>setEdit(null)}),
+    edit!==null&&React.createElement(PlayerForm,{player:edit.id?edit:null,onSave:save,onClose:()=>setEdit(null)}),
     match&&React.createElement(MatchPanel,{player:match,games,onClose:()=>setMatch(null)})
   );
 }
@@ -535,107 +553,21 @@ function RecherchePage({games}){
 
 /* ── APP ── */
 function App(){
-  const [games, setGames] = useState([]);
-  const [players, setPlayers] = useState([]);
-  const [page, setPage] = useState('collection');
-  const [loading, setLoading] = useState(true);
+  const [games,setGames]=useState(()=>lsLoad('jds_games',G0));
+  const [players,setPlayers]=useState(()=>lsLoad('jds_players',P0));
+  const [page,setPage]=useState('collection');
 
-  // Charger les données depuis Supabase au démarrage
-  useEffect(() => {
-    async function fetchData() {
-      try {
-        const { data: gData, error: gErr } = await supabaseClient.from('games').select('*');
-        const { data: pData, error: pErr } = await supabaseClient.from('players').select('*');
-        
-        if (gData) setGames(gData);
-        if (pData) setPlayers(pData);
-        if (gErr || pErr) console.warn("Tables inaccessibles ou vides au démarrage.");
-      } catch (err) {
-        console.error("Erreur critique de communication BDD", err);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchData();
-  }, []);
-
-  /* ── ACTIONS JEUX (BDD) ── */
-  const saveGame = async (f) => {
-    const isNew = !f.id;
-    const finalGame = { ...f, id: isNew ? newId(games) : f.id };
-    const { error } = await supabaseClient.from('games').upsert(finalGame);
-    if (!error) {
-      setGames(isNew ? [...games, finalGame] : games.map(g => g.id === f.id ? finalGame : g));
-      showToast(isNew ? 'Jeu ajouté à la table !' : 'Fiche jeu modifiée !');
-    } else {
-      showToast('Erreur Supabase : ' + error.message, 'error');
-    }
+  const handleImport=()=>importJSON((g,p)=>{
+    setGames(g);setPlayers(p);
+    lsSave('jds_games',g);lsSave('jds_players',p);
+  });
+  const handleExport=()=>exportJSON(games,players);
+  const handleReset=()=>{
+    if(!confirm('Réinitialiser TOUTES les données ? Cette action est irréversible.'))return;
+    setGames(G0);setPlayers(P0);
+    lsSave('jds_games',G0);lsSave('jds_players',P0);
+    showToast('Données réinitialisées','info');
   };
-
-  const deleteGame = async (id) => {
-    if (!confirm('Supprimer ce jeu de la ludothèque ?')) return;
-    const { error } = await supabaseClient.from('games').delete().eq('id', id);
-    if (!error) {
-      setGames(games.filter(g => g.id !== id));
-      showToast('Jeu supprimé.');
-    } else {
-      showToast('Erreur de suppression : ' + error.message, 'error');
-    }
-  };
-
-  /* ── ACTIONS JOUEURS (BDD) ── */
-  const savePlayer = async (f) => {
-    const isNew = !f.id;
-    const finalPlayer = { ...f, id: isNew ? newId(players) : f.id };
-    const { error } = await supabaseClient.from('players').upsert(finalPlayer);
-    if (!error) {
-      setPlayers(isNew ? [...players, finalPlayer] : players.map(p => p.id === f.id ? finalPlayer : p));
-      showToast(isNew ? 'Nouveau joueur enregistré !' : 'Fiche joueur mise à jour !');
-    } else {
-      showToast('Erreur Supabase : ' + error.message, 'error');
-    }
-  };
-
-  const deletePlayer = async (id) => {
-    if (!confirm('Supprimer ce compagnon de jeu ?')) return;
-    const { error } = await supabaseClient.from('players').delete().eq('id', id);
-    if (!error) {
-      setPlayers(players.filter(p => p.id !== id));
-      showToast('Compagnon effacé.');
-    } else {
-      showToast('Erreur de suppression : ' + error.message, 'error');
-    }
-  };
-
-  /* ── BACKUPS & RESTAURATION ── */
-  const handleImport = async (g, p) => {
-    setLoading(true);
-    const { error: gErr } = await supabaseClient.from('games').upsert(g);
-    const { error: pErr } = await supabaseClient.from('players').upsert(p);
-    if (!gErr && !pErr) {
-      setGames(g); setPlayers(p);
-      showToast('Restauration complète effectuée dans le Cloud !');
-    } else {
-      showToast('Erreur d\'injection dans les tables.', 'error');
-    }
-    setLoading(false);
-  };
-
-  const handleExport = () => exportJSON(games, players);
-  
-  const handleReset = async () => {
-    if (!confirm('Réinitialiser TOUTES les données distantes avec le catalogue par défaut ?')) return;
-    setLoading(true);
-    await supabaseClient.from('games').delete().neq('id', 0);
-    await supabaseClient.from('players').delete().neq('id', 0);
-    await supabaseClient.from('games').insert(G0);
-    await supabaseClient.from('players').insert(P0);
-    setGames(G0); setPlayers(P0);
-    setLoading(false);
-    showToast('Base de données initialisée !', 'info');
-  };
-
-  if (loading) return React.createElement('div', {style: {color: AU, textAlign: 'center', paddingTop: '100px', fontFamily: 'Cinzel, serif', fontSize: '18px'}}, React.createElement('div', {className: 'spinner', style: {marginRight: '10px'}}), 'Invocation de la ludothèque céleste...');
 
   const nav=[
     {id:'collection',label:'Collection',icon:'🎲',count:games.length,col:AU,rgb:'232,184,75'},
@@ -657,13 +589,13 @@ function App(){
       ),
       React.createElement('div',{style:{display:'flex',gap:5,alignItems:'center',flexWrap:'wrap'}},
         React.createElement('button',{onClick:handleExport,title:'Exporter en JSON (sauvegarde externe)',style:{background:'rgba(0,201,167,.1)',color:TE,border:'1px solid rgba(0,201,167,.3)',borderRadius:8,padding:'5px 10px',fontSize:11,fontWeight:700,cursor:'pointer',fontFamily:'Nunito,sans-serif'}},'💾 Exporter'),
-        React.createElement('button',{onClick:()=>importJSON(handleImport),title:'Importer et écraser la base Cloud',style:{background:'rgba(155,114,245,.1)',color:VI,border:'1px solid rgba(155,114,245,.3)',borderRadius:8,padding:'5px 10px',fontSize:11,fontWeight:700,cursor:'pointer',fontFamily:'Nunito,sans-serif'}},'📂 Importer'),
-        React.createElement('button',{onClick:handleReset,title:'Réinitialiser la base distante',style:{background:'rgba(255,84,112,.06)',color:RO,border:'1px solid rgba(255,84,112,.2)',borderRadius:8,padding:'5px 10px',fontSize:11,fontWeight:700,cursor:'pointer',fontFamily:'Nunito,sans-serif'}},'↺ Reset')
+        React.createElement('button',{onClick:handleImport,title:'Importer depuis un fichier JSON',style:{background:'rgba(155,114,245,.1)',color:VI,border:'1px solid rgba(155,114,245,.3)',borderRadius:8,padding:'5px 10px',fontSize:11,fontWeight:700,cursor:'pointer',fontFamily:'Nunito,sans-serif'}},'📂 Importer'),
+        React.createElement('button',{onClick:handleReset,title:'Réinitialiser toutes les données',style:{background:'rgba(255,84,112,.06)',color:RO,border:'1px solid rgba(255,84,112,.2)',borderRadius:8,padding:'5px 10px',fontSize:11,fontWeight:700,cursor:'pointer',fontFamily:'Nunito,sans-serif'}},'↺ Reset')
       )
     ),
     React.createElement('div',{style:{maxWidth:1300,margin:'0 auto',padding:'22px 20px'}},
-      page==='collection'&&React.createElement(CollectionPage,{games,onSave:saveGame,onDelete:deleteGame}),
-      page==='joueurs'&&React.createElement(JoueursPage,{players,games,onSave:savePlayer,onDelete:deletePlayer}),
+      page==='collection'&&React.createElement(CollectionPage,{games,setGames}),
+      page==='joueurs'&&React.createElement(JoueursPage,{players,setPlayers,games}),
       page==='recherche'&&React.createElement(RecherchePage,{games})
     )
   );
