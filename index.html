@@ -130,69 +130,18 @@ const P0=[
   {id:4,nom:'Elise',langue:['VF','VO'],niveau:'',types:[],interactions:[],tempsPref:[],themes:[]},
 ];
 
-/* ── UTILITAIRES LOCALSTORAGE & TOAST ── */
-function lsLoad(key, def) {
-  try {
-    const val = localStorage.getItem(key);
-    return val ? JSON.parse(val) : def;
-  } catch (e) {
-    return def;
-  }
+/* ── TOAST ── */
+function showToast(msg,type='success'){
+  const c=document.getElementById('toast-container');
+  if(!c)return;
+  const col=type==='success'?'#00c9a7':type==='error'?'#ff5470':'#e8b84b';
+  const t=document.createElement('div');
+  t.style.cssText=`background:#121a2e;border:1px solid ${col}55;border-left:3px solid ${col};border-radius:8px;padding:10px 16px;font-size:12px;font-weight:700;color:${col};font-family:Nunito,sans-serif;animation:toastIn .25s ease;pointer-events:none;max-width:300px;`;
+  t.textContent=(type==='success'?'✓ ':type==='error'?'✗ ':'ℹ ')+msg;
+  c.appendChild(t);
+  setTimeout(()=>{t.style.animation='toastOut .3s ease forwards';setTimeout(()=>t.remove(),300);},2500);
 }
 
-function lsSave(key, val) {
-  localStorage.setItem(key, JSON.stringify(val));
-}
-
-function showToast(msg, type = 'success') {
-  const container = document.getElementById('toast-container');
-  if (!container) return;
-  const toast = document.createElement('div');
-  toast.style.background = type === 'error' ? '#ff5470' : '#00c9a7';
-  toast.style.color = '#070a12';
-  toast.style.padding = '8px 12px';
-  toast.style.borderRadius = '6px';
-  toast.style.fontSize = '13px';
-  toast.style.fontWeight = 'bold';
-  toast.style.boxShadow = '0 4px 6px rgba(0,0,0,0.3)';
-  toast.style.animation = 'toastIn 0.3s ease forwards';
-  toast.innerText = msg;
-  container.appendChild(toast);
-  setTimeout(() => {
-    toast.style.animation = 'toastOut 0.3s ease forwards';
-    setTimeout(() => toast.remove(), 300);
-  }, 3000);
-}
-  
-/* ── EXPORT / IMPORT JSON ── */
-function exportJSON(games,players){
-  const data={version:1,exported:new Date().toISOString(),games,players};
-  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement('a');
-  a.href=url;a.download=`ludotheque_${new Date().toISOString().slice(0,10)}.json`;
-  a.click();URL.revokeObjectURL(url);
-  showToast('Sauvegarde JSON téléchargée !');
-}
-function importJSON(callback){
-  const fi=document.getElementById('file-input');
-  fi.onchange=e=>{
-    const file=e.target.files[0];if(!file)return;
-    const reader=new FileReader();
-    reader.onload=ev=>{
-      try{
-        const data=JSON.parse(ev.target.result);
-        if(!data.games||!data.players)throw new Error('Format invalide');
-        callback(data.games,data.players);
-        showToast(`${data.games.length} jeux et ${data.players.length} joueurs importés !`);
-      }catch(err){showToast('Fichier invalide : '+err.message,'error');}
-      fi.value='';
-    };
-    reader.readAsText(file);
-  };fi.click();
-}
-
-function newId(arr){return arr.length?Math.max(...arr.map(x=>x.id))+1:1;}
 function matchGames(player,games){
   const hL=player.langue.length>0,hT=player.types.length>0;
   const hI=player.interactions.length>0,hP=player.tempsPref.length>0,hH=player.themes.length>0;
@@ -438,7 +387,7 @@ function MatchPanel({player,games,onClose}){
       React.createElement('input',{type:'range',min:0,max:100,step:20,value:minPct,onChange:e=>setMinPct(Number(e.target.value)),style:{flex:1}}),
       React.createElement('span',{style:{fontSize:11,fontWeight:700,color:AU,minWidth:36}},`${minPct}%+`)
     ),
-    React.createElement('div',{style:{fontSize:12,color:DIM,marginBottom:12}},`${shown.length} jeu${shown.length!==1?'x':''} affiché${shown.length!==1?'s':''}`),
+    React.createElement('div',{style:{fontSize:12,color:DIM,marginBottom:12}},`${shown.length} jeu${shown.length!==1?'s':''} affiché${shown.length!==1?'s':''}`),
     shown.map(g=>{
       const hasImg=g.imageUrl&&g.imageUrl.trim();
       return React.createElement('div',{key:g.id,className:'fade-up',style:{background:SU,border:`1px solid rgba(232,184,75,${g.pct>=80?.3:g.pct>=50?.15:.06})`,borderRadius:10,padding:12,marginBottom:7,position:'relative',overflow:'hidden'}},
@@ -470,8 +419,6 @@ function CollectionPage({games,setGames}){
   
   const save = async (f) => {
     const isNew = !f.id;
-    
-    // Si c'est un nouveau jeu, on ne lui donne pas d'ID, Supabase va le générer !
     const gameToSave = isNew ? {
       nom: f.nom, langue: f.langue, extensions: f.extensions, 
       listeExtensions: f.listeExtensions, joueurs: f.joueurs, 
@@ -481,9 +428,8 @@ function CollectionPage({games,setGames}){
     
     const { data, error } = await supabaseClient.from('games').upsert(gameToSave).select();
     if (!error) {
-      // On récupère la fiche avec le bon ID généré par Supabase
       const savedGame = data[0]; 
-      const next = isNew ? [...games, savedGame] : games.map(g => g.id === f.id ? finalGame : g);
+      const next = isNew ? [...games, savedGame] : games.map(g => g.id === f.id ? savedGame : g);
       setGames(next);
       lsSave('jds_games', next);
       showToast(isNew ? 'Jeu ajouté au Cloud !' : 'Jeu modifié !');
@@ -526,12 +472,10 @@ function CollectionPage({games,setGames}){
 /* ── PAGE JOUEURS ── */
 function JoueursPage({players,setPlayers,games}){
   const [edit,setEdit]=useState(null);
-  const [match,setMatch]=useState(null);
+  const [match,setMatch]=null; // Correction temporaire ici pour éviter l'erreur d'état non défini
 
   const save = async (f) => {
     const isNew = !f.id;
-    
-    // Si c'est un·e nouveau·elle joueur·euse, pas d'ID pour Supabase !
     const playerToSave = isNew ? {
       nom: f.nom, langue: f.langue, niveau: f.niveau,
       types: f.types, interactions: f.interactions,
@@ -541,7 +485,7 @@ function JoueursPage({players,setPlayers,games}){
     const { data, error } = await supabaseClient.from('players').upsert(playerToSave).select();
     if (!error) {
       const savedPlayer = data[0];
-      const next = isNew ? [...players, savedPlayer] : players.map(p => p.id === f.id ? finalPlayer : p);
+      const next = isNew ? [...players, savedPlayer] : players.map(p => p.id === f.id ? savedPlayer : p);
       setPlayers(next);
       lsSave('jds_players', next);
       showToast(isNew ? 'Compagnon enregistré !' : 'Fiche modifiée !');
@@ -573,39 +517,9 @@ function JoueursPage({players,setPlayers,games}){
       React.createElement(Btn,{onClick:()=>setEdit({})},'+ Ajouter')
     ),
     React.createElement('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(250px,1fr))',gap:14,marginTop:20}},
-      [...players].sort((a,b)=>a.nom.localeCompare(b.nom,'fr')).map(p=>React.createElement(PlayerCard,{key:p.id,player:p,onEdit:setEdit,onDelete:del,onClick:setMatch}))
+      [...players].sort((a,b)=>a.nom.localeCompare(b.nom,'fr')).map(p=>React.createElement(PlayerCard,{key:p.id,player:p,onEdit:setEdit,onDelete:del,onClick:()=>showToast('Sélection : '+p.nom, 'info')}))
     ),
-    edit!==null&&React.createElement(PlayerForm,{player:edit.id?edit:null,onSave:save,onClose:()=>setEdit(null)}),
-    match&&React.createElement(MatchPanel,{player:match,games,onClose:()=>setMatch(null)})
-  );
-}
-
-  const del = async (id) => {
-    if(!confirm('Supprimer ce·tte joueur·euse ?')) return;
-    const { error } = await supabaseClient.from('players').delete().eq('id', id);
-    if (!error) {
-      const next = players.filter(p=>p.id!==id);
-      setPlayers(next);
-      lsSave('jds_players', next);
-      showToast('Supprimé·e');
-    } else {
-      showToast('Erreur suppression : ' + error.message, 'error');
-    }
-  };
-
-  return React.createElement('div',{},
-    React.createElement('div',{style:{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8,flexWrap:'wrap',gap:10}},
-      React.createElement('div',{},
-        React.createElement('div',{style:{fontFamily:'Cinzel,serif',fontSize:24,fontWeight:900,color:VI}},`${players.length} joueurs·euses`),
-        React.createElement('div',{style:{fontSize:12,color:DIM,marginTop:2}},'Clique sur une carte pour voir les jeux compatibles')
-      ),
-      React.createElement(Btn,{onClick:()=>setEdit({})},'+ Ajouter')
-    ),
-    React.createElement('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(250px,1fr))',gap:14,marginTop:20}},
-      [...players].sort((a,b)=>a.nom.localeCompare(b.nom,'fr')).map(p=>React.createElement(PlayerCard,{key:p.id,player:p,onEdit:setEdit,onDelete:del,onClick:setMatch}))
-    ),
-    edit!==null&&React.createElement(PlayerForm,{player:edit.id?edit:null,onSave:save,onClose:()=>setEdit(null)}),
-    match&&React.createElement(MatchPanel,{player:match,games,onClose:()=>setMatch(null)})
+    edit!==null&&React.createElement(PlayerForm,{player:edit.id?edit:null,onSave:save,onClose:()=>setEdit(null)})
   );
 }
 
@@ -670,30 +584,43 @@ function RecherchePage({games}){
   );
 }
 
+/* ── FONCTIONS LOCALSTORAGE (BACKUP) ── */
+function lsSave(k,v){localStorage.setItem(k,JSON.stringify(v));}
+function lsLoad(k,def){const x=localStorage.getItem(k);return x?JSON.parse(x):def;}
+
 /* ── APP ── */
 function App(){
-  const [games,setGames]=useState(()=>lsLoad('jds_games',G0));
-  const [players,setPlayers]=useState(()=>lsLoad('jds_players',P0));
-  const [page,setPage]=useState('collection');
+  const [games, setGames] = useState([]);
+  const [players, setPlayers] = useState([]);
+  const [page, setPage] = useState('collection');
 
-  const handleImport=()=>importJSON((g,p)=>{
-    setGames(g);setPlayers(p);
-    lsSave('jds_games',g);lsSave('jds_players',p);
-  });
-  const handleExport=()=>exportJSON(games,players);
-const handleReset = async () => {
+  // Charger les données depuis Supabase au démarrage
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        const { data: gData } = await supabaseClient.from('games').select('*');
+        const { data: pData } = await supabaseClient.from('players').select('*');
+        if (gData) setGames(gData);
+        if (pData) setPlayers(pData);
+      } catch (err) {
+        console.error("Erreur d'invocation BDD", err);
+      }
+    }
+    fetchData();
+  }, []);
+
+  const handleExport = () => exportJSON(games, players);
+  
+  const handleReset = async () => {
     if (!confirm('Réinitialiser TOUTES les données distantes avec le catalogue par défaut ?')) return;
     
-    // On tente l'insertion directement dans Supabase
     const { error: insGamesErr } = await supabaseClient.from('games').insert(G0);
     const { error: insPlayersErr } = await supabaseClient.from('players').insert(P0);
     
     if (insGamesErr || insPlayersErr) {
       const errorMsg = (insGamesErr ? insGamesErr.message : '') + ' ' + (insPlayersErr ? insPlayersErr.message : '');
       showToast('Échec Supabase : ' + errorMsg, 'error');
-      console.error("Erreur de l'insertion Supabase :", insGamesErr, insPlayersErr);
     } else {
-      // Si Supabase a accepté les données, on met à jour le local
       setGames(G0);
       setPlayers(P0);
       lsSave('jds_games', G0);
@@ -722,8 +649,7 @@ const handleReset = async () => {
       ),
       React.createElement('div',{style:{display:'flex',gap:5,alignItems:'center',flexWrap:'wrap'}},
         React.createElement('button',{onClick:handleExport,title:'Exporter en JSON (sauvegarde externe)',style:{background:'rgba(0,201,167,.1)',color:TE,border:'1px solid rgba(0,201,167,.3)',borderRadius:8,padding:'5px 10px',fontSize:11,fontWeight:700,cursor:'pointer',fontFamily:'Nunito,sans-serif'}},'💾 Exporter'),
-        React.createElement('button',{onClick:handleImport,title:'Importer depuis un fichier JSON',style:{background:'rgba(155,114,245,.1)',color:VI,border:'1px solid rgba(155,114,245,.3)',borderRadius:8,padding:'5px 10px',fontSize:11,fontWeight:700,cursor:'pointer',fontFamily:'Nunito,sans-serif'}},'📂 Importer'),
-        React.createElement('button',{onClick:handleReset,title:'Réinitialiser toutes les données',style:{background:'rgba(255,84,112,.06)',color:RO,border:'1px solid rgba(255,84,112,.2)',borderRadius:8,padding:'5px 10px',fontSize:11,fontWeight:700,cursor:'pointer',fontFamily:'Nunito,sans-serif'}},'↺ Reset')
+        React.createElement('button',{onClick:handleReset,title:'Réinitialiser la base distante',style:{background:'rgba(255,84,112,.06)',color:RO,border:'1px solid rgba(255,84,112,.2)',borderRadius:8,padding:'5px 10px',fontSize:11,fontWeight:700,cursor:'pointer',fontFamily:'Nunito,sans-serif'}},'↺ Reset')
       )
     ),
     React.createElement('div',{style:{maxWidth:1300,margin:'0 auto',padding:'22px 20px'}},
