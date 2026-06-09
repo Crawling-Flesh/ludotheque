@@ -467,16 +467,36 @@ function CollectionPage({games,setGames}){
   const [search,setSearch]=useState('');
   const [edit,setEdit]=useState(null);
   const filtered=useMemo(()=>games.filter(g=>g.nom.toLowerCase().includes(search.toLowerCase())).sort((a,b)=>a.nom.localeCompare(b.nom,'fr')),[games,search]);
-  const save=(f)=>{
-    const next=f.id?games.map(g=>g.id===f.id?f:g):[...games,{...f,id:newId(games)}];
-    setGames(next);lsSave('jds_games',next);
-    showToast(f.id?'Jeu modifié !':'Jeu ajouté !');setEdit(null);
+  
+  const save = async (f) => {
+    const isNew = !f.id;
+    const finalGame = { ...f, id: isNew ? (games.length ? Math.max(...games.map(x=>x.id)) + 1 : 1) : f.id };
+    
+    const { error } = await supabaseClient.from('games').upsert(finalGame);
+    if (!error) {
+      const next = isNew ? [...games, finalGame] : games.map(g => g.id === f.id ? finalGame : g);
+      setGames(next);
+      lsSave('jds_games', next);
+      showToast(isNew ? 'Jeu ajouté à Supabase !' : 'Jeu modifié !');
+      setEdit(null);
+    } else {
+      showToast('Échec Supabase : ' + error.message, 'error');
+    }
   };
-  const del=(id)=>{
-    if(!confirm('Supprimer ce jeu ?'))return;
-    const next=games.filter(g=>g.id!==id);
-    setGames(next);lsSave('jds_games',next);showToast('Jeu supprimé');
+
+  const del = async (id) => {
+    if(!confirm('Supprimer ce jeu ?')) return;
+    const { error } = await supabaseClient.from('games').delete().eq('id', id);
+    if (!error) {
+      const next = games.filter(g=>g.id!==id);
+      setGames(next);
+      lsSave('jds_games', next);
+      showToast('Jeu supprimé');
+    } else {
+      showToast('Erreur suppression : ' + error.message, 'error');
+    }
   };
+
   return React.createElement('div',{},
     React.createElement('div',{style:{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:20,flexWrap:'wrap',gap:10}},
       React.createElement('div',{},
@@ -498,16 +518,36 @@ function CollectionPage({games,setGames}){
 function JoueursPage({players,setPlayers,games}){
   const [edit,setEdit]=useState(null);
   const [match,setMatch]=useState(null);
-  const save=(f)=>{
-    const next=f.id?players.map(p=>p.id===f.id?f:p):[...players,{...f,id:newId(players)}];
-    setPlayers(next);lsSave('jds_players',next);
-    showToast(f.id?'Joueur·euse modifié·e !':'Joueur·euse ajouté·e !');setEdit(null);
+
+  const save = async (f) => {
+    const isNew = !f.id;
+    const finalPlayer = { ...f, id: isNew ? (players.length ? Math.max(...players.map(x=>x.id)) + 1 : 1) : f.id };
+    
+    const { error } = await supabaseClient.from('players').upsert(finalPlayer);
+    if (!error) {
+      const next = isNew ? [...players, finalPlayer] : players.map(p => p.id === f.id ? finalPlayer : p);
+      setPlayers(next);
+      lsSave('jds_players', next);
+      showToast(isNew ? 'Joueur·euse ajouté·e !' : 'Joueur·euse modifié·e !');
+      setEdit(null);
+    } else {
+      showToast('Échec Supabase : ' + error.message, 'error');
+    }
   };
-  const del=(id)=>{
-    if(!confirm('Supprimer ce·tte joueur·euse ?'))return;
-    const next=players.filter(p=>p.id!==id);
-    setPlayers(next);lsSave('jds_players',next);showToast('Supprimé·e');
+
+  const del = async (id) => {
+    if(!confirm('Supprimer ce·tte joueur·euse ?')) return;
+    const { error } = await supabaseClient.from('players').delete().eq('id', id);
+    if (!error) {
+      const next = players.filter(p=>p.id!==id);
+      setPlayers(next);
+      lsSave('jds_players', next);
+      showToast('Supprimé·e');
+    } else {
+      showToast('Erreur suppression : ' + error.message, 'error');
+    }
   };
+
   return React.createElement('div',{},
     React.createElement('div',{style:{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8,flexWrap:'wrap',gap:10}},
       React.createElement('div',{},
