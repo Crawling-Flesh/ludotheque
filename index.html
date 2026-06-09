@@ -470,14 +470,23 @@ function CollectionPage({games,setGames}){
   
   const save = async (f) => {
     const isNew = !f.id;
-    const finalGame = { ...f, id: isNew ? (games.length ? Math.max(...games.map(x=>x.id)) + 1 : 1) : f.id };
     
-    const { error } = await supabaseClient.from('games').upsert(finalGame);
+    // Si c'est un nouveau jeu, on ne lui donne pas d'ID, Supabase va le générer !
+    const gameToSave = isNew ? {
+      nom: f.nom, langue: f.langue, extensions: f.extensions, 
+      listeExtensions: f.listeExtensions, joueurs: f.joueurs, 
+      types: f.types, mecaniques: f.mecaniques, interaction: f.interaction, 
+      temps: f.temps, theme: f.theme, imageUrl: f.imageUrl
+    } : f;
+    
+    const { data, error } = await supabaseClient.from('games').upsert(gameToSave).select();
     if (!error) {
-      const next = isNew ? [...games, finalGame] : games.map(g => g.id === f.id ? finalGame : g);
+      // On récupère la fiche avec le bon ID généré par Supabase
+      const savedGame = data[0]; 
+      const next = isNew ? [...games, savedGame] : games.map(g => g.id === f.id ? finalGame : g);
       setGames(next);
       lsSave('jds_games', next);
-      showToast(isNew ? 'Jeu ajouté à Supabase !' : 'Jeu modifié !');
+      showToast(isNew ? 'Jeu ajouté au Cloud !' : 'Jeu modifié !');
       setEdit(null);
     } else {
       showToast('Échec Supabase : ' + error.message, 'error');
@@ -521,19 +530,55 @@ function JoueursPage({players,setPlayers,games}){
 
   const save = async (f) => {
     const isNew = !f.id;
-    const finalPlayer = { ...f, id: isNew ? (players.length ? Math.max(...players.map(x=>x.id)) + 1 : 1) : f.id };
     
-    const { error } = await supabaseClient.from('players').upsert(finalPlayer);
+    // Si c'est un·e nouveau·elle joueur·euse, pas d'ID pour Supabase !
+    const playerToSave = isNew ? {
+      nom: f.nom, langue: f.langue, niveau: f.niveau,
+      types: f.types, interactions: f.interactions,
+      tempsPref: f.tempsPref, themes: f.themes
+    } : f;
+    
+    const { data, error } = await supabaseClient.from('players').upsert(playerToSave).select();
     if (!error) {
-      const next = isNew ? [...players, finalPlayer] : players.map(p => p.id === f.id ? finalPlayer : p);
+      const savedPlayer = data[0];
+      const next = isNew ? [...players, savedPlayer] : players.map(p => p.id === f.id ? finalPlayer : p);
       setPlayers(next);
       lsSave('jds_players', next);
-      showToast(isNew ? 'Joueur·euse ajouté·e !' : 'Joueur·euse modifié·e !');
+      showToast(isNew ? 'Compagnon enregistré !' : 'Fiche modifiée !');
       setEdit(null);
     } else {
       showToast('Échec Supabase : ' + error.message, 'error');
     }
   };
+
+  const del = async (id) => {
+    if(!confirm('Supprimer ce·tte joueur·euse ?')) return;
+    const { error } = await supabaseClient.from('players').delete().eq('id', id);
+    if (!error) {
+      const next = players.filter(p=>p.id!==id);
+      setPlayers(next);
+      lsSave('jds_players', next);
+      showToast('Supprimé·e');
+    } else {
+      showToast('Erreur suppression : ' + error.message, 'error');
+    }
+  };
+
+  return React.createElement('div',{},
+    React.createElement('div',{style:{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8,flexWrap:'wrap',gap:10}},
+      React.createElement('div',{},
+        React.createElement('div',{style:{fontFamily:'Cinzel,serif',fontSize:24,fontWeight:900,color:VI}},`${players.length} joueurs·euses`),
+        React.createElement('div',{style:{fontSize:12,color:DIM,marginTop:2}},'Clique sur une carte pour voir les jeux compatibles')
+      ),
+      React.createElement(Btn,{onClick:()=>setEdit({})},'+ Ajouter')
+    ),
+    React.createElement('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(250px,1fr))',gap:14,marginTop:20}},
+      [...players].sort((a,b)=>a.nom.localeCompare(b.nom,'fr')).map(p=>React.createElement(PlayerCard,{key:p.id,player:p,onEdit:setEdit,onDelete:del,onClick:setMatch}))
+    ),
+    edit!==null&&React.createElement(PlayerForm,{player:edit.id?edit:null,onSave:save,onClose:()=>setEdit(null)}),
+    match&&React.createElement(MatchPanel,{player:match,games,onClose:()=>setMatch(null)})
+  );
+}
 
   const del = async (id) => {
     if(!confirm('Supprimer ce·tte joueur·euse ?')) return;
