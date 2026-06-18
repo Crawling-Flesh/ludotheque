@@ -291,7 +291,7 @@ function GameCard({game,onEdit,onDelete}){
   const hasImg=game.imageUrl&&game.imageUrl.trim();
   return React.createElement('div',{onMouseEnter:()=>setHov(true),onMouseLeave:()=>setHov(false),
     style:{background:CA,border:`1px solid ${hov?'rgba(232,184,75,.5)':BO}`,borderRadius:12,transition:'all .2s',transform:hov?'translateY(-2px)':'none',position:'relative',overflow:'hidden',display:'flex',flexDirection:'column',boxShadow:hov?'0 8px 32px rgba(0,0,0,.4)':'none'}},
-    hasImg&&React.createElement('div',{style:{position:'absolute',inset:0,backgroundImage:`url(${game.imageUrl})`,backgroundSize:'cover',backgroundPosition:'center',opacity:.14,filter:'saturate(0.6)'}}),
+    hasImg&&React.createElement('div',{style:{position:'absolute',inset:0,backgroundImage:`url(${game.imageUrl})`,backgroundSize:'cover',backgroundPosition:'center',opacity:.6,filter:'saturate(0.6)'}}),
     hasImg&&React.createElement('div',{style:{position:'absolute',inset:0,background:'linear-gradient(150deg,rgba(18,26,46,.96) 0%,rgba(18,26,46,.8) 100%)'}}),
     React.createElement('div',{style:{padding:15,position:'relative',flex:1,display:'flex',flexDirection:'column'}},
       React.createElement('div',{style:{marginBottom:8}},
