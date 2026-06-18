@@ -21,7 +21,7 @@ select option{background:#111827;color:#e2ddd5}
 .fade-up{animation:fadeUp .18s ease}
 .spinner{display:inline-block;width:16px;height:16px;border:2px solid rgba(232,184,75,.3);border-top-color:#e8b84b;border-radius:50%;animation:spin .7s linear infinite}
 .tooltip-wrap{position:relative;display:inline-block}
-.tooltip-wrap .tooltip-box{position:absolute;bottom:calc(100% + 7px);left:300%;transform:translateX(-50%);background:#1a2035;border:1px solid rgba(232,184,75,.3);border-radius:8px;padding:10px 13px;width:280px;font-size:11px;color:#c8c0b0;line-height:1.6;z-index:9999;pointer-events:none;opacity:0;transition:opacity .15s;white-space:normal}
+.tooltip-wrap .tooltip-box{position:absolute;bottom:calc(100% + 7px);left:50%;transform:translateX(-50%);background:#1a2035;border:1px solid rgba(232,184,75,.3);border-radius:8px;padding:10px 13px;width:280px;font-size:11px;color:#c8c0b0;line-height:1.6;z-index:9999;pointer-events:none;opacity:0;transition:opacity .15s;white-space:normal;left:300%}
 .tooltip-wrap:hover .tooltip-box{opacity:1}
 .ext-tooltip{position:absolute;top:calc(100% + 6px);left:0;background:#1a2035;border:1px solid rgba(0,201,167,.3);border-radius:8px;padding:8px 12px;min-width:160px;font-size:11px;color:#c8c0b0;z-index:9999;white-space:nowrap;pointer-events:none}
 input[type=range]{accent-color:#e8b84b}
@@ -56,16 +56,19 @@ const TC={
   temps:{c:'#60a5fa',bg:'rgba(96,165,250,.11)',b:'rgba(96,165,250,.28)'},
   neutral:{c:DIM,bg:'rgba(122,122,154,.1)',b:'rgba(122,122,154,.22)'},
 };
+
+/* ── SQUELETTE DES OPTIONS DE BASE ── */
 const OPT={
   langue:['VF','VO','ENG OSEF'],
   joueurs:['Solo','2','3','4','5','6+'],
-  types:['Ambiance','Campagne','Competitif','Coop','Coup Bas','En équipes','Un contre plusieurs'],
-  mecaniques:['Cartes','Combat','Deck builder','Déduction','Dés','Dungeon Crawler','Dextérité','Economie','Escarmouche','Exploration',"Placement d'ouvriers",'Ressources','Tower Defense'],
   interaction:['Forte','Moyenne forte','Moyenne','Indirecte Moyenne','Indirecte'],
   temps:[15,30,45,60,90,120],
-  theme:['Antique','Espace','Fantasy','Horreur','Moderne','Autre','Western'],
   niveau:['Débutant','Intermédiaire','Avancé'],
   tempsPref:['Courts (≤60min)','Moyens (60-120min)','Longs (+120min)'],
+  // Les options ci-dessous sont désormais 100% gérées par la BDD (app_options)
+  types:[],
+  mecaniques:[],
+  theme:[]
 };
 const INTERACTION_DESC={
   'Forte':'Confrontation-baston, communication, coopération, négociation, party game, équipes',
@@ -151,9 +154,13 @@ function Sel({options,value,onChange,placeholder='—'}){
 function Inp({value,onChange,placeholder,style={}}){
   return React.createElement('input',{value:value||'',onChange:e=>onChange(e.target.value),placeholder,style:{background:SU,color:'#e2ddd5',border:`1px solid ${BO}`,borderRadius:8,padding:'7px 12px',fontSize:13,width:'100%',outline:'none',fontFamily:'Nunito,sans-serif',...style}});
 }
-function Field({label,children,extra}){
+function Field({label,children,extra,onAdd}){
   return React.createElement('div',{style:{marginBottom:15}},
-    React.createElement('div',{style:{fontSize:10,fontWeight:800,color:AU,textTransform:'uppercase',letterSpacing:'.1em',marginBottom:7,display:'flex',alignItems:'center',gap:6}},label,extra),
+    React.createElement('div',{style:{fontSize:10,fontWeight:800,color:AU,textTransform:'uppercase',letterSpacing:'.1em',marginBottom:7,display:'flex',alignItems:'center',gap:6}},
+      label,
+      extra,
+      onAdd&&React.createElement('button',{onClick:(e)=>{e.preventDefault();onAdd();},style:{background:'rgba(0,201,167,.15)',color:TE,border:`1px solid rgba(0,201,167,.3)`,borderRadius:4,padding:'2px 6px',cursor:'pointer',fontSize:9,marginLeft:'auto',fontFamily:'Nunito,sans-serif'}},'+ Ajouter')
+    ),
     children
   );
 }
@@ -233,15 +240,21 @@ function ExtensionsBadge({listeExtensions=[]}){
 }
 
 /* ── FORMULAIRE JEU ── */
-function GameForm({game,onSave,onClose}){
+function GameForm({game,onSave,onClose,options,onAddOption}){
   const def={nom:'',langue:[],extensions:'Non',listeExtensions:[],joueurs:[],types:[],mecaniques:[],interaction:'',temps:60,theme:'',imageUrl:''};
   const [f,setF]=useState(game||def);
   const u=(k,v)=>setF(p=>({...p,[k]:v}));
   const ok=f.nom.trim()&&f.langue.length>0&&f.joueurs.length>0&&f.types.length>0&&f.theme;
+
+  const pAdd = (cat, label, isNum=false) => {
+    const val = prompt('Ajouter une option pour : ' + label);
+    if (val && val.trim()) onAddOption(cat, isNum ? Number(val.trim()) : val.trim());
+  };
+
   return React.createElement(PanelOverlay,{title:game?'✏️ Modifier le jeu':'🎲 Ajouter un jeu',onClose},
     React.createElement(Field,{label:'Nom'},React.createElement(Inp,{value:f.nom,onChange:v=>u('nom',v),placeholder:'Nom du jeu'})),
     React.createElement(Field,{label:'Image (URL)'},React.createElement(Inp,{value:f.imageUrl,onChange:v=>u('imageUrl',v),placeholder:'https://... (optionnel)'})),
-    React.createElement(Field,{label:'Langue'},React.createElement(Chips,{options:OPT.langue,value:f.langue,onChange:v=>u('langue',v),cat:'langue'})),
+    React.createElement(Field,{label:'Langue', onAdd:()=>pAdd('langue','Langue')},React.createElement(Chips,{options:options.langue,value:f.langue,onChange:v=>u('langue',v),cat:'langue'})),
     React.createElement(Field,{label:'Extensions'},
       React.createElement('div',{},
         React.createElement('div',{style:{display:'flex',gap:8,marginBottom:f.extensions==='Oui'?12:0}},
@@ -250,12 +263,12 @@ function GameForm({game,onSave,onClose}){
         f.extensions==='Oui'&&React.createElement(ExtensionsInput,{value:f.listeExtensions||[],onChange:v=>u('listeExtensions',v)})
       )
     ),
-    React.createElement(Field,{label:'Joueurs'},React.createElement(Chips,{options:OPT.joueurs,value:f.joueurs,onChange:v=>u('joueurs',v),cat:'joueurs'})),
-    React.createElement(Field,{label:'Type de jeu'},React.createElement(Chips,{options:OPT.types,value:f.types,onChange:v=>u('types',v),cat:'types'})),
-    React.createElement(Field,{label:'Mécaniques'},React.createElement(Chips,{options:OPT.mecaniques,value:f.mecaniques,onChange:v=>u('mecaniques',v),cat:'mecaniques'})),
-    React.createElement(Field,{label:'Interaction',extra:React.createElement(InteractionInfo)},React.createElement(Sel,{options:OPT.interaction,value:f.interaction,onChange:v=>u('interaction',v),placeholder:'Aucune'})),
-    React.createElement(Field,{label:'Temps de jeu (min)'},React.createElement(Sel,{options:OPT.temps,value:String(f.temps),onChange:v=>u('temps',Number(v))})),
-    React.createElement(Field,{label:'Thème'},React.createElement(Sel,{options:OPT.theme,value:f.theme,onChange:v=>u('theme',v),placeholder:'Choisir...'})),
+    React.createElement(Field,{label:'Joueurs', onAdd:()=>pAdd('joueurs','Joueurs')},React.createElement(Chips,{options:options.joueurs,value:f.joueurs,onChange:v=>u('joueurs',v),cat:'joueurs'})),
+    React.createElement(Field,{label:'Type de jeu', onAdd:()=>pAdd('types','Type de jeu')},React.createElement(Chips,{options:options.types,value:f.types,onChange:v=>u('types',v),cat:'types'})),
+    React.createElement(Field,{label:'Mécaniques', onAdd:()=>pAdd('mecaniques','Mécaniques')},React.createElement(Chips,{options:options.mecaniques,value:f.mecaniques,onChange:v=>u('mecaniques',v),cat:'mecaniques'})),
+    React.createElement(Field,{label:'Interaction',extra:React.createElement(InteractionInfo)},React.createElement(Sel,{options:options.interaction,value:f.interaction,onChange:v=>u('interaction',v),placeholder:'Aucune'})),
+    React.createElement(Field,{label:'Temps de jeu (min)', onAdd:()=>pAdd('temps','Temps (min)',true)},React.createElement(Sel,{options:options.temps,value:String(f.temps),onChange:v=>u('temps',Number(v))})),
+    React.createElement(Field,{label:'Thème', onAdd:()=>pAdd('theme','Thème')},React.createElement(Sel,{options:options.theme,value:f.theme,onChange:v=>u('theme',v),placeholder:'Choisir...'})),
     React.createElement('div',{style:{display:'flex',gap:10,paddingTop:8}},
       React.createElement(Btn,{onClick:()=>ok&&onSave(f),disabled:!ok},'Sauvegarder'),
       React.createElement(Btn,{variant:'ghost',onClick:onClose},'Annuler')
@@ -264,19 +277,25 @@ function GameForm({game,onSave,onClose}){
 }
 
 /* ── FORMULAIRE JOUEUR ── */
-function PlayerForm({player,onSave,onClose}){
+function PlayerForm({player,onSave,onClose,options,onAddOption}){
   const def={nom:'',langue:[],niveau:'',types:[],interactions:[],tempsPref:[],themes:[]};
   const [f,setF]=useState(player||def);
   const u=(k,v)=>setF(p=>({...p,[k]:v}));
   const ok=f.nom.trim()&&f.langue.length>0;
+
+  const pAdd = (cat, label) => {
+    const val = prompt('Ajouter une option pour : ' + label);
+    if (val && val.trim()) onAddOption(cat, val.trim());
+  };
+
   return React.createElement(PanelOverlay,{title:player?'✏️ Modifier le·la joueur·euse':'👤 Ajouter un·e joueur·euse',onClose},
     React.createElement(Field,{label:'Nom'},React.createElement(Inp,{value:f.nom,onChange:v=>u('nom',v),placeholder:'Nom'})),
-    React.createElement(Field,{label:'Langue'},React.createElement(Chips,{options:OPT.langue,value:f.langue,onChange:v=>u('langue',v),cat:'langue'})),
-    React.createElement(Field,{label:'Niveau'},React.createElement(Sel,{options:OPT.niveau,value:f.niveau,onChange:v=>u('niveau',v),placeholder:'Non précisé'})),
-    React.createElement(Field,{label:'Types de jeux préférés'},React.createElement(Chips,{options:OPT.types,value:f.types,onChange:v=>u('types',v),cat:'types'})),
-    React.createElement(Field,{label:'Interactions aimées',extra:React.createElement(InteractionInfo)},React.createElement(Chips,{options:OPT.interaction,value:f.interactions,onChange:v=>u('interactions',v),cat:'interaction'})),
-    React.createElement(Field,{label:'Temps de jeu préféré'},React.createElement(Chips,{options:OPT.tempsPref,value:f.tempsPref,onChange:v=>u('tempsPref',v),cat:'temps'})),
-    React.createElement(Field,{label:'Thèmes préférés'},React.createElement(Chips,{options:OPT.theme,value:f.themes,onChange:v=>u('themes',v),cat:'theme'})),
+    React.createElement(Field,{label:'Langue', onAdd:()=>pAdd('langue','Langue')},React.createElement(Chips,{options:options.langue,value:f.langue,onChange:v=>u('langue',v),cat:'langue'})),
+    React.createElement(Field,{label:'Niveau'},React.createElement(Sel,{options:options.niveau,value:f.niveau,onChange:v=>u('niveau',v),placeholder:'Non précisé'})),
+    React.createElement(Field,{label:'Types de jeux préférés', onAdd:()=>pAdd('types','Types de jeux')},React.createElement(Chips,{options:options.types,value:f.types,onChange:v=>u('types',v),cat:'types'})),
+    React.createElement(Field,{label:'Interactions aimées',extra:React.createElement(InteractionInfo)},React.createElement(Chips,{options:options.interaction,value:f.interactions,onChange:v=>u('interactions',v),cat:'interaction'})),
+    React.createElement(Field,{label:'Temps de jeu préféré'},React.createElement(Chips,{options:options.tempsPref,value:f.tempsPref,onChange:v=>u('tempsPref',v),cat:'temps'})),
+    React.createElement(Field,{label:'Thèmes préférés', onAdd:()=>pAdd('theme','Thèmes')},React.createElement(Chips,{options:options.theme,value:f.themes,onChange:v=>u('themes',v),cat:'theme'})),
     React.createElement('div',{style:{display:'flex',gap:10,paddingTop:8}},
       React.createElement(Btn,{onClick:()=>ok&&onSave(f),disabled:!ok},'Sauvegarder'),
       React.createElement(Btn,{variant:'ghost',onClick:onClose},'Annuler')
@@ -291,7 +310,7 @@ function GameCard({game,onEdit,onDelete}){
   const hasImg=game.imageUrl&&game.imageUrl.trim();
   return React.createElement('div',{onMouseEnter:()=>setHov(true),onMouseLeave:()=>setHov(false),
     style:{background:CA,border:`1px solid ${hov?'rgba(232,184,75,.5)':BO}`,borderRadius:12,transition:'all .2s',transform:hov?'translateY(-2px)':'none',position:'relative',overflow:'hidden',display:'flex',flexDirection:'column',boxShadow:hov?'0 8px 32px rgba(0,0,0,.4)':'none'}},
-    hasImg&&React.createElement('div',{style:{position:'absolute',inset:0,backgroundImage:`url(${game.imageUrl})`,backgroundSize:'cover',backgroundPosition:'center',opacity:.6,filter:'saturate(0.6)'}}),
+    hasImg&&React.createElement('div',{style:{position:'absolute',inset:0,backgroundImage:`url(${game.imageUrl})`,backgroundSize:'cover',backgroundPosition:'center',opacity:.6}}),
     hasImg&&React.createElement('div',{style:{position:'absolute',inset:0,background:'linear-gradient(150deg,rgba(18,26,46,.96) 0%,rgba(18,26,46,.8) 100%)'}}),
     React.createElement('div',{style:{padding:15,position:'relative',flex:1,display:'flex',flexDirection:'column'}},
       React.createElement('div',{style:{marginBottom:8}},
@@ -341,7 +360,7 @@ function PlayerCard({player,onEdit,onDelete,onClick}){
     React.createElement('div',{style:{marginTop:8,fontSize:11,color:col,fontWeight:700,opacity:hov?1:0,transition:'opacity .2s'}},'🎯 Voir les jeux compatibles →'),
     hov&&React.createElement('div',{style:{display:'flex',gap:5,marginTop:9,paddingTop:9,borderTop:`1px solid ${col}22`},onClick:e=>e.stopPropagation()},
       React.createElement(Btn,{small:true,variant:'secondary',onClick:()=>onEdit(player)},'✏️ Modifier'),
-      React.createElement(Btn,{small:true,variant:'danger',onClick:() => onDelete(player.id)},'🗑 Supprimer')
+      React.createElement(Btn,{small:true,variant:'danger',onClick:()=>onDelete(player.id)},'🗑 Supprimer')
     )
   );
 }
@@ -384,11 +403,44 @@ function MatchPanel({player,games,onClose}){
 }
 
 /* ── PAGE COLLECTION ── */
-function CollectionPage({games,onSave,onDelete}){
+function CollectionPage({games,setGames,options,onAddOption}){
   const [search,setSearch]=useState('');
   const [edit,setEdit]=useState(null);
   const filtered=useMemo(()=>games.filter(g=>g.nom.toLowerCase().includes(search.toLowerCase())).sort((a,b)=>a.nom.localeCompare(b.nom,'fr')),[games,search]);
   
+  const save = async (f) => {
+    const isNew = !f.id;
+    const gameToSave = isNew ? {
+      nom: f.nom, langue: f.langue, extensions: f.extensions, 
+      listeExtensions: f.listeExtensions, joueurs: f.joueurs, 
+      types: f.types, mecaniques: f.mecaniques, interaction: f.interaction, 
+      temps: f.temps, theme: f.theme, imageUrl: f.imageUrl
+    } : f;
+    
+    const { data, error } = await supabaseClient.from('games').upsert(gameToSave).select();
+    if (!error) {
+      const savedGame = data[0]; 
+      const next = isNew ? [...games, savedGame] : games.map(g => g.id === f.id ? savedGame : g);
+      setGames(next);
+      showToast(isNew ? 'Jeu ajouté au Cloud !' : 'Jeu modifié !');
+      setEdit(null);
+    } else {
+      showToast('Échec Supabase : ' + error.message, 'error');
+    }
+  };
+
+  const del = async (id) => {
+    if(!confirm('Supprimer ce jeu ?')) return;
+    const { error } = await supabaseClient.from('games').delete().eq('id', id);
+    if (!error) {
+      const next = games.filter(g=>g.id!==id);
+      setGames(next);
+      showToast('Jeu supprimé');
+    } else {
+      showToast('Erreur suppression : ' + error.message, 'error');
+    }
+  };
+
   return React.createElement('div',{},
     React.createElement('div',{style:{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:20,flexWrap:'wrap',gap:10}},
       React.createElement('div',{},
@@ -400,16 +452,48 @@ function CollectionPage({games,onSave,onDelete}){
     React.createElement('input',{value:search,onChange:e=>setSearch(e.target.value),placeholder:'🔍 Rechercher un jeu...',style:{background:SU,color:'#e2ddd5',border:`1px solid ${BO}`,borderRadius:10,padding:'9px 14px',fontSize:13,width:'100%',outline:'none',marginBottom:20,fontFamily:'Nunito,sans-serif'}}),
     filtered.length===0&&React.createElement('div',{style:{textAlign:'center',color:DIM,padding:'50px 0',fontSize:13}},'Aucun jeu trouvé.'),
     React.createElement('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(280px,1fr))',gap:14}},
-      filtered.map(g=>React.createElement(GameCard,{key:g.id,game:g,onEdit:setEdit,onDelete:onDelete}))
+      filtered.map(g=>React.createElement(GameCard,{key:g.id,game:g,onEdit:setEdit,onDelete:del}))
     ),
-    edit!==null&&React.createElement(GameForm,{game:edit.id?edit:null,onSave:f=>{onSave(f);setEdit(null);},onClose:()=>setEdit(null)})
+    edit!==null&&React.createElement(GameForm,{game:edit.id?edit:null,onSave:save,onClose:()=>setEdit(null),options,onAddOption})
   );
 }
 
 /* ── PAGE JOUEURS ── */
-function JoueursPage({players,games,onSave,onDelete}){
+function JoueursPage({players,setPlayers,games,options,onAddOption}){
   const [edit,setEdit]=useState(null);
   const [match,setMatch]=useState(null);
+
+  const save = async (f) => {
+    const isNew = !f.id;
+    const playerToSave = isNew ? {
+      nom: f.nom, langue: f.langue, niveau: f.niveau,
+      types: f.types, interactions: f.interactions,
+      tempsPref: f.tempsPref, themes: f.themes
+    } : f;
+    
+    const { data, error } = await supabaseClient.from('players').upsert(playerToSave).select();
+    if (!error) {
+      const savedPlayer = data[0];
+      const next = isNew ? [...players, savedPlayer] : players.map(p => p.id === f.id ? savedPlayer : p);
+      setPlayers(next);
+      showToast(isNew ? 'Compagnon enregistré !' : 'Fiche modifiée !');
+      setEdit(null);
+    } else {
+      showToast('Échec Supabase : ' + error.message, 'error');
+    }
+  };
+
+  const del = async (id) => {
+    if(!confirm('Supprimer ce·tte joueur·euse ?')) return;
+    const { error } = await supabaseClient.from('players').delete().eq('id', id);
+    if (!error) {
+      const next = players.filter(p=>p.id!==id);
+      setPlayers(next);
+      showToast('Supprimé·e');
+    } else {
+      showToast('Erreur suppression : ' + error.message, 'error');
+    }
+  };
 
   return React.createElement('div',{},
     React.createElement('div',{style:{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8,flexWrap:'wrap',gap:10}},
@@ -420,15 +504,15 @@ function JoueursPage({players,games,onSave,onDelete}){
       React.createElement(Btn,{onClick:()=>setEdit({})},'+ Ajouter')
     ),
     React.createElement('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(250px,1fr))',gap:14,marginTop:20}},
-      [...players].sort((a,b)=>a.nom.localeCompare(b.nom,'fr')).map(p=>React.createElement(PlayerCard,{key:p.id,player:p,onEdit:setEdit,onDelete:() => onDelete(p.id),onClick:setMatch}))
+      [...players].sort((a,b)=>a.nom.localeCompare(b.nom,'fr')).map(p=>React.createElement(PlayerCard,{key:p.id,player:p,onEdit:setEdit,onDelete:del,onClick:setMatch}))
     ),
-    edit!==null&&React.createElement(PlayerForm,{player:edit.id?edit:null,onSave:f=>{onSave(f);setEdit(null);},onClose:()=>setEdit(null)}),
+    edit!==null&&React.createElement(PlayerForm,{player:edit.id?edit:null,onSave:save,onClose:()=>setEdit(null),options,onAddOption}),
     match&&React.createElement(MatchPanel,{player:match,games,onClose:()=>setMatch(null)})
   );
 }
 
 /* ── PAGE RECHERCHE ── */
-function RecherchePage({games}){
+function RecherchePage({games,options}){
   const [f,setF]=useState({langue:[],joueurs:[],types:[],mecaniques:[],temps:'',theme:''});
   const u=(k,v)=>setF(p=>({...p,[k]:v}));
   const results=useMemo(()=>games.filter(g=>{
@@ -447,18 +531,18 @@ function RecherchePage({games}){
         React.createElement('span',{style:{fontFamily:'Cinzel,serif',fontSize:14,fontWeight:800,color:AU}},'Filtres'),
         hasF&&React.createElement('button',{onClick:()=>setF({langue:[],joueurs:[],types:[],mecaniques:[],temps:'',theme:''}),style:{background:'none',border:'none',color:DIM,fontSize:11,cursor:'pointer',textDecoration:'underline',fontFamily:'Nunito,sans-serif'}},'Réinitialiser')
       ),
-      React.createElement(Field,{label:'Langue'},React.createElement(Chips,{options:OPT.langue,value:f.langue,onChange:v=>u('langue',v),cat:'langue'})),
-      React.createElement(Field,{label:'Joueurs'},React.createElement(Chips,{options:OPT.joueurs,value:f.joueurs,onChange:v=>u('joueurs',v),cat:'joueurs'})),
-      React.createElement(Field,{label:'Type de jeu'},React.createElement(Chips,{options:OPT.types,value:f.types,onChange:v=>u('types',v),cat:'types'})),
-      React.createElement(Field,{label:'Mécaniques'},React.createElement(Chips,{options:OPT.mecaniques,value:f.mecaniques,onChange:v=>u('mecaniques',v),cat:'mecaniques'})),
+      React.createElement(Field,{label:'Langue'},React.createElement(Chips,{options:options.langue,value:f.langue,onChange:v=>u('langue',v),cat:'langue'})),
+      React.createElement(Field,{label:'Joueurs'},React.createElement(Chips,{options:options.joueurs,value:f.joueurs,onChange:v=>u('joueurs',v),cat:'joueurs'})),
+      React.createElement(Field,{label:'Type de jeu'},React.createElement(Chips,{options:options.types,value:f.types,onChange:v=>u('types',v),cat:'types'})),
+      React.createElement(Field,{label:'Mécaniques'},React.createElement(Chips,{options:options.mecaniques,value:f.mecaniques,onChange:v=>u('mecaniques',v),cat:'mecaniques'})),
       React.createElement(Field,{label:'Temps de jeu'},
         React.createElement('div',{style:{display:'flex',flexDirection:'column',gap:5}},
-          OPT.tempsPref.map(tp=>React.createElement('button',{key:tp,onClick:()=>u('temps',f.temps===tp?'':tp),style:{background:f.temps===tp?TC.temps.bg:'transparent',color:f.temps===tp?TC.temps.c:DIM,border:`1px solid ${f.temps===tp?TC.temps.b:'rgba(122,122,154,.18)'}`,borderRadius:8,padding:'5px 12px',fontSize:11,fontWeight:f.temps===tp?700:400,cursor:'pointer',textAlign:'left',fontFamily:'Nunito,sans-serif'}},tp))
+          options.tempsPref.map(tp=>React.createElement('button',{key:tp,onClick:()=>u('temps',f.temps===tp?'':tp),style:{background:f.temps===tp?TC.temps.bg:'transparent',color:f.temps===tp?TC.temps.c:DIM,border:`1px solid ${f.temps===tp?TC.temps.b:'rgba(122,122,154,.18)'}`,borderRadius:8,padding:'5px 12px',fontSize:11,fontWeight:f.temps===tp?700:400,cursor:'pointer',textAlign:'left',fontFamily:'Nunito,sans-serif'}},tp))
         )
       ),
       React.createElement(Field,{label:'Thème'},
         React.createElement('div',{style:{display:'flex',flexWrap:'wrap',gap:5}},
-          OPT.theme.map(th=>{const s=f.theme===th;return React.createElement('button',{key:th,onClick:()=>u('theme',s?'':th),style:{background:s?TC.theme.bg:'transparent',color:s?RO:DIM,border:`1px solid ${s?TC.theme.b:'rgba(122,122,154,.18)'}`,borderRadius:999,padding:'3px 10px',fontSize:11,fontWeight:s?700:400,cursor:'pointer',fontFamily:'Nunito,sans-serif'}},th);})
+          options.theme.map(th=>{const s=f.theme===th;return React.createElement('button',{key:th,onClick:()=>u('theme',s?'':th),style:{background:s?TC.theme.bg:'transparent',color:s?RO:DIM,border:`1px solid ${s?TC.theme.b:'rgba(122,122,154,.18)'}`,borderRadius:999,padding:'3px 10px',fontSize:11,fontWeight:s?700:400,cursor:'pointer',fontFamily:'Nunito,sans-serif'}},th);})
         )
       )
     ),
@@ -469,7 +553,7 @@ function RecherchePage({games}){
         results.map(g=>{
           const hasImg=g.imageUrl&&g.imageUrl.trim();
           return React.createElement('div',{key:g.id,className:'fade-up',style:{background:CA,border:`1px solid ${BO}`,borderRadius:10,overflow:'hidden',position:'relative'}},
-            hasImg&&React.createElement('div',{style:{position:'absolute',inset:0,backgroundImage:`url(${g.imageUrl})`,backgroundSize:'cover',backgroundPosition:'center',opacity:.1}}),
+            hasImg&&React.createElement('div',{style:{position:'absolute',inset:0,backgroundImage:`url(${g.imageUrl})`,backgroundSize:'cover',backgroundPosition:'center',opacity:.6}}),
             hasImg&&React.createElement('div',{style:{position:'absolute',inset:0,background:'linear-gradient(135deg,rgba(18,26,46,.97),rgba(18,26,46,.82)'}}),
             React.createElement('div',{style:{padding:14,position:'relative'}},
               React.createElement('div',{style:{fontFamily:'Cinzel,serif',fontSize:13,fontWeight:700,color:'#e2ddd5',marginBottom:8}},g.nom),
@@ -492,18 +576,33 @@ function RecherchePage({games}){
 function App(){
   const [games, setGames] = useState([]);
   const [players, setPlayers] = useState([]);
+  const [options, setOptions] = useState(OPT);
   const [page, setPage] = useState('collection');
   const [loading, setLoading] = useState(true);
 
-  // Charger les données depuis Supabase
   const fetchData = async () => {
     setLoading(true);
     try {
       const { data: gData } = await supabaseClient.from('games').select('*');
       const { data: pData } = await supabaseClient.from('players').select('*');
+      const { data: oData, error: oErr } = await supabaseClient.from('app_options').select('*');
       
       if (gData) setGames(gData);
       if (pData) setPlayers(pData);
+      
+      if (!oErr && oData) {
+        const newOpt = JSON.parse(JSON.stringify(OPT));
+        oData.forEach(row => {
+          const cat = row.categorie;
+          const val = cat === 'temps' ? Number(row.valeur) : row.valeur;
+          if (newOpt[cat]) {
+            if (!newOpt[cat].includes(val)) newOpt[cat].push(val);
+          } else {
+            newOpt[cat] = [val];
+          }
+        });
+        setOptions(newOpt);
+      }
     } catch (err) {
       console.error("Erreur critique de communication BDD", err);
     } finally {
@@ -515,59 +614,24 @@ function App(){
     fetchData();
   }, []);
 
-  /* ── ACTIONS JEUX (BDD) ── */
-  const saveGame = async (f) => {
-    const isNew = !f.id;
-    const nextId = isNew ? (games.length > 0 ? Math.max(...games.map(g => g.id)) + 1 : 1) : f.id;
-    const finalGame = { ...f, id: nextId };
-    
-    const { error } = await supabaseClient.from('games').upsert(finalGame);
+  const handleAddOption = async (categorie, valeur) => {
+    const stringVal = String(valeur);
+    const { error } = await supabaseClient.from('app_options').insert([{ categorie, valeur: stringVal }]);
     if (!error) {
-      setGames(isNew ? [...games, finalGame] : games.map(g => g.id === f.id ? finalGame : g));
-      showToast(isNew ? 'Jeu ajouté à la table !' : 'Fiche jeu modifiée !');
+      setOptions(prev => {
+        const next = { ...prev };
+        const valToAdd = categorie === 'temps' ? Number(valeur) : stringVal;
+        if (!next[categorie].includes(valToAdd)) {
+          next[categorie] = [...next[categorie], valToAdd];
+        }
+        return next;
+      });
+      showToast(`Option ajoutée : ${valeur}`, 'success');
     } else {
-      showToast('Erreur Supabase : ' + error.message, 'error');
+      showToast('Erreur ajout option : ' + error.message, 'error');
     }
   };
 
-  const deleteGame = async (id) => {
-    if (!confirm('Supprimer ce jeu de la ludothèque ?')) return;
-    const { error } = await supabaseClient.from('games').delete().eq('id', id);
-    if (!error) {
-      setGames(games.filter(g => g.id !== id));
-      showToast('Jeu supprimé.');
-    } else {
-      showToast('Erreur de suppression : ' + error.message, 'error');
-    }
-  };
-
-  /* ── ACTIONS JOUEURS (BDD) ── */
-  const savePlayer = async (f) => {
-    const isNew = !f.id;
-    const nextId = isNew ? (players.length > 0 ? Math.max(...players.map(p => p.id)) + 1 : 1) : f.id;
-    const finalPlayer = { ...f, id: nextId };
-    
-    const { error } = await supabaseClient.from('players').upsert(finalPlayer);
-    if (!error) {
-      setPlayers(isNew ? [...players, finalPlayer] : players.map(p => p.id === f.id ? finalPlayer : p));
-      showToast(isNew ? 'Nouveau joueur enregistré !' : 'Fiche joueur mise à jour !');
-    } else {
-      showToast('Erreur Supabase : ' + error.message, 'error');
-    }
-  };
-
-  const deletePlayer = async (id) => {
-    if (!confirm('Supprimer ce compagnon de jeu ?')) return;
-    const { error } = await supabaseClient.from('players').delete().eq('id', id);
-    if (!error) {
-      setPlayers(players.filter(p => p.id !== id));
-      showToast('Compagnon effacé.');
-    } else {
-      showToast('Erreur de suppression : ' + error.message, 'error');
-    }
-  };
-
-  /* ── BACKUPS & SYNCHRONISATION ── */
   const handleImport = async (g, p) => {
     setLoading(true);
     const { error: gErr } = await supabaseClient.from('games').upsert(g);
@@ -615,9 +679,9 @@ function App(){
       )
     ),
     React.createElement('div',{style:{maxWidth:1300,margin:'0 auto',padding:'22px 20px'}},
-      page==='collection'&&React.createElement(CollectionPage,{games,onSave:saveGame,onDelete:deleteGame}),
-      page==='joueurs'&&React.createElement(JoueursPage,{players,games,onSave:savePlayer,onDelete:deletePlayer}),
-      page==='recherche'&&React.createElement(RecherchePage,{games})
+      page==='collection'&&React.createElement(CollectionPage,{games,setGames,options,onAddOption:handleAddOption}),
+      page==='joueurs'&&React.createElement(JoueursPage,{players,setPlayers,games,options,onAddOption:handleAddOption}),
+      page==='recherche'&&React.createElement(RecherchePage,{games,options})
     )
   );
 }
