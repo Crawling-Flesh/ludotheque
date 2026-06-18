@@ -246,15 +246,15 @@ function GameForm({game,onSave,onClose,options,onAddOption}){
   const u=(k,v)=>setF(p=>({...p,[k]:v}));
   const ok=f.nom.trim()&&f.langue.length>0&&f.joueurs.length>0&&f.types.length>0&&f.theme;
 
-  const pAdd = (cat, label, isNum=false) => {
+  const pAdd = (cat, label) => {
     const val = prompt('Ajouter une option pour : ' + label);
-    if (val && val.trim()) onAddOption(cat, isNum ? Number(val.trim()) : val.trim());
+    if (val && val.trim()) onAddOption(cat, val.trim());
   };
 
   return React.createElement(PanelOverlay,{title:game?'✏️ Modifier le jeu':'🎲 Ajouter un jeu',onClose},
     React.createElement(Field,{label:'Nom'},React.createElement(Inp,{value:f.nom,onChange:v=>u('nom',v),placeholder:'Nom du jeu'})),
     React.createElement(Field,{label:'Image (URL)'},React.createElement(Inp,{value:f.imageUrl,onChange:v=>u('imageUrl',v),placeholder:'https://... (optionnel)'})),
-    React.createElement(Field,{label:'Langue', onAdd:()=>pAdd('langue','Langue')},React.createElement(Chips,{options:options.langue,value:f.langue,onChange:v=>u('langue',v),cat:'langue'})),
+    React.createElement(Field,{label:'Langue'},React.createElement(Chips,{options:options.langue,value:f.langue,onChange:v=>u('langue',v),cat:'langue'})),
     React.createElement(Field,{label:'Extensions'},
       React.createElement('div',{},
         React.createElement('div',{style:{display:'flex',gap:8,marginBottom:f.extensions==='Oui'?12:0}},
@@ -263,11 +263,11 @@ function GameForm({game,onSave,onClose,options,onAddOption}){
         f.extensions==='Oui'&&React.createElement(ExtensionsInput,{value:f.listeExtensions||[],onChange:v=>u('listeExtensions',v)})
       )
     ),
-    React.createElement(Field,{label:'Joueurs', onAdd:()=>pAdd('joueurs','Joueurs')},React.createElement(Chips,{options:options.joueurs,value:f.joueurs,onChange:v=>u('joueurs',v),cat:'joueurs'})),
+    React.createElement(Field,{label:'Joueurs'},React.createElement(Chips,{options:options.joueurs,value:f.joueurs,onChange:v=>u('joueurs',v),cat:'joueurs'})),
     React.createElement(Field,{label:'Type de jeu', onAdd:()=>pAdd('types','Type de jeu')},React.createElement(Chips,{options:options.types,value:f.types,onChange:v=>u('types',v),cat:'types'})),
     React.createElement(Field,{label:'Mécaniques', onAdd:()=>pAdd('mecaniques','Mécaniques')},React.createElement(Chips,{options:options.mecaniques,value:f.mecaniques,onChange:v=>u('mecaniques',v),cat:'mecaniques'})),
     React.createElement(Field,{label:'Interaction',extra:React.createElement(InteractionInfo)},React.createElement(Sel,{options:options.interaction,value:f.interaction,onChange:v=>u('interaction',v),placeholder:'Aucune'})),
-    React.createElement(Field,{label:'Temps de jeu (min)', onAdd:()=>pAdd('temps','Temps (min)',true)},React.createElement(Sel,{options:options.temps,value:String(f.temps),onChange:v=>u('temps',Number(v))})),
+    React.createElement(Field,{label:'Temps de jeu (min)'},React.createElement(Sel,{options:options.temps,value:String(f.temps),onChange:v=>u('temps',Number(v))})),
     React.createElement(Field,{label:'Thème', onAdd:()=>pAdd('theme','Thème')},React.createElement(Sel,{options:options.theme,value:f.theme,onChange:v=>u('theme',v),placeholder:'Choisir...'})),
     React.createElement('div',{style:{display:'flex',gap:10,paddingTop:8}},
       React.createElement(Btn,{onClick:()=>ok&&onSave(f),disabled:!ok},'Sauvegarder'),
@@ -290,7 +290,7 @@ function PlayerForm({player,onSave,onClose,options,onAddOption}){
 
   return React.createElement(PanelOverlay,{title:player?'✏️ Modifier le·la joueur·euse':'👤 Ajouter un·e joueur·euse',onClose},
     React.createElement(Field,{label:'Nom'},React.createElement(Inp,{value:f.nom,onChange:v=>u('nom',v),placeholder:'Nom'})),
-    React.createElement(Field,{label:'Langue', onAdd:()=>pAdd('langue','Langue')},React.createElement(Chips,{options:options.langue,value:f.langue,onChange:v=>u('langue',v),cat:'langue'})),
+    React.createElement(Field,{label:'Langue'},React.createElement(Chips,{options:options.langue,value:f.langue,onChange:v=>u('langue',v),cat:'langue'})),
     React.createElement(Field,{label:'Niveau'},React.createElement(Sel,{options:options.niveau,value:f.niveau,onChange:v=>u('niveau',v),placeholder:'Non précisé'})),
     React.createElement(Field,{label:'Types de jeux préférés', onAdd:()=>pAdd('types','Types de jeux')},React.createElement(Chips,{options:options.types,value:f.types,onChange:v=>u('types',v),cat:'types'})),
     React.createElement(Field,{label:'Interactions aimées',extra:React.createElement(InteractionInfo)},React.createElement(Chips,{options:options.interaction,value:f.interactions,onChange:v=>u('interactions',v),cat:'interaction'})),
