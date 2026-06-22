@@ -560,7 +560,7 @@ function GroupsPage({groups,players,games,onSave,onDelete}){
   return React.createElement('div', {},
     React.createElement('div', {style:{display:'flex', gap:10, marginBottom:20}},
       React.createElement(Btn, {onClick: openCreate}, '➕ Créer un groupe régulier'),
-      React.createElement(Btn, {onClick: openTemp, variant: 'teal'}, '⏳ Lancer un One-Shot (Temp)')
+      React.createElement(Btn, {onClick: openTemp, variant: 'teal'}, '⏳ Groupe temporaire')
     ),
     mode && React.createElement('div', {style:{background:CA, border:`1px solid ${BO}`, borderRadius:12, padding:20, marginBottom:20}},
       React.createElement('h3', {style:{fontFamily:'Cinzel,serif', color:AU, marginBottom:15}}, mode==='create'?'Nouveau groupe régulier':'Configuration du One-Shot'),
@@ -775,7 +775,7 @@ const saveGroup = async (g) => {
     showToast('Ludothèque synchronisée depuis le Cloud !', 'success');
   };
 
-  if (loading) return React.createElement('div', {style: {color: AU, textAlign: 'center', paddingTop: '100px', fontFamily: 'Cinzel, serif', fontSize: '18px'}}, React.createElement('div', {className: 'spinner', style: {marginRight: '10px'}}), 'Invocation de la ludothèque céleste...');
+  if (loading) return React.createElement('div', {style: {color: AU, textAlign: 'center', paddingTop: '100px', fontFamily: 'Cinzel, serif', fontSize: '18px'}}, React.createElement('div', {className: 'spinner', style: {marginRight: '10px'}}), 'Invocation de la ludothèque Crawbourgeoise...');
 
   const nav=[
     {id:'collection',label:'Collection',icon:'🎲',count:games.length,col:AU,rgb:'232,184,75'},
