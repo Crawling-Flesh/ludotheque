@@ -511,6 +511,107 @@ function JoueursPage({players,setPlayers,games,options,onAddOption}){
   );
 }
 
+/* ── PAGE GROUPES ── */
+function GroupsPage({groups,players,games,onSave,onDelete}){
+  const [activeGroup, setActiveGroup] = useState(null);
+  const [mode, setMode] = useState(null); // 'create' (régulier) ou 'temp' (one-shot)
+  const [gName, setGName] = useState('');
+  const [selPlayerIds, setSelPlayerIds] = useState([]);
+
+  const openCreate = () => { setMode('create'); setGName(''); setSelPlayerIds([]); setActiveGroup(null); };
+  const openTemp = () => { setMode('temp'); setGName('One-Shot Temporel'); setSelPlayerIds([]); setActiveGroup(null); };
+  const togglePlayer = (id) => setSelPlayerIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+
+  const handleSaveGroup = () => {
+    if (mode === 'create') {
+      if (!gName.trim() || !selPlayerIds.length) return;
+      onSave({ nom: gName, joueurs_ids: selPlayerIds });
+    } else {
+      setActiveGroup({ nom: gName, joueurs_ids: selPlayerIds, isTemp: true });
+    }
+    setMode(null);
+  };
+
+  const matchedGames = useMemo(() => {
+    if (!activeGroup || !activeGroup.joueurs_ids.length) return [];
+    const count = activeGroup.joueurs_ids.length;
+    const countStr = count === 1 ? 'Solo' : (count >= 6 ? '6+' : String(count));
+    
+    // Filtre strict : le jeu doit supporter exactement le nombre de joueurs du groupe
+    const validGames = games.filter(g => g.joueurs && g.joueurs.includes(countStr));
+    
+    return validGames.map(g => {
+      let totalPct = 0;
+      activeGroup.joueurs_ids.forEach(pId => {
+        const p = players.find(x => x.id === pId);
+        if (!p) return;
+        let s=0, m=0;
+        if(p.langue?.length){m++;if(p.langue.some(l=>g.langue.includes(l)))s++;}
+        if(p.types?.length){m++;if(p.types.some(t=>g.types.includes(t)))s++;}
+        if(p.interactions?.length&&g.interaction){m++;if(p.interactions.includes(g.interaction))s++;}
+        if(p.tempsPref?.length){m++;const ok=p.tempsPref.some(pr=>pr.includes('≤60')?g.temps<=60:pr.includes('60-120')?g.temps>60&&g.temps<=120:g.temps>120);if(ok)s++;}
+        if(p.themes?.length){m++;if(p.themes.includes(g.theme))s++;}
+        totalPct += (m > 0 ? (s / m * 100) : 100);
+      });
+      return { ...g, pct: Math.round(totalPct / activeGroup.joueurs_ids.length) };
+    }).sort((a,b) => b.pct - a.pct);
+  }, [activeGroup, games, players]);
+
+  return React.createElement('div', {},
+    React.createElement('div', {style:{display:'flex', gap:10, marginBottom:20}},
+      React.createElement(Btn, {onClick: openCreate}, '➕ Créer un groupe régulier'),
+      React.createElement(Btn, {onClick: openTemp, variant: 'teal'}, '⏳ Lancer un One-Shot (Temp)')
+    ),
+    mode && React.createElement('div', {style:{background:CA, border:`1px solid ${BO}`, borderRadius:12, padding:20, marginBottom:20}},
+      React.createElement('h3', {style:{fontFamily:'Cinzel,serif', color:AU, marginBottom:15}}, mode==='create'?'Nouveau groupe régulier':'Configuration du One-Shot'),
+      mode === 'create' && React.createElement(Field, {label:'Nom du Groupe'}, React.createElement(Inp, {value:gName, onChange:setGName, placeholder:'Ex: Les Aventuriers'})),
+      React.createElement(Field, {label:'Sélectionner les membres'},
+        React.createElement('div', {style:{display:'flex', flexWrap:'wrap', gap:8}},
+          players.map(p => React.createElement('button', {key: p.id, onClick: () => togglePlayer(p.id), style: {background: selPlayerIds.includes(p.id) ? 'rgba(155,114,245,.15)' : 'transparent', color: selPlayerIds.includes(p.id) ? VI : DIM, border: `1px solid ${selPlayerIds.includes(p.id) ? VI : 'rgba(122,122,154,.2)'}`, borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontFamily: 'Nunito,sans-serif'}}, p.nom))
+        )
+      ),
+      React.createElement('div', {style:{display:'flex', gap:10, marginTop:10}},
+        React.createElement(Btn, {onClick: handleSaveGroup, disabled: (mode==='create'&&!gName.trim()) || !selPlayerIds.length}, mode==='create'?'Graver dans le Cloud':'Calculer l\'alliance'),
+        React.createElement(Btn, {variant: 'ghost', onClick: () => setMode(null)}, 'Annuler')
+      )
+    ),
+    !activeGroup && !mode && React.createElement('div', {style:{display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(260px,1fr))', gap:14, marginBottom:20}},
+      groups.map(gr => {
+        const listNoms = gr.joueurs_ids.map(id => players.find(x=>x.id===id)?.nom || '?').join(', ');
+        return React.createElement('div', {key: gr.id, onClick: () => setActiveGroup(gr), style: {background:CA, border:`1px solid ${BO}`, borderRadius:12, padding:16, cursor:'pointer'}},
+          React.createElement('div', {style:{fontFamily:'Cinzel,serif', fontWeight:700, color:AU, marginBottom:6}}, gr.nom),
+          React.createElement('div', {style:{fontSize:11, color:DIM, marginBottom:12, fontStyle:'italic'}}, `${gr.joueurs_ids.length} membre(s) : ${listNoms}`),
+          React.createElement('div', {style:{display:'flex', gap:6}, onClick: e => e.stopPropagation()},
+            React.createElement(Btn, {small:true, variant:'danger', onClick: () => onDelete(gr.id)}, 'Dissoudre')
+          )
+        );
+      })
+    ),
+    activeGroup && React.createElement('div', {className:'fade-up'},
+      React.createElement('div', {style:{display:'flex', alignItems:'center', justifyContent:'space-between', borderBottom:`1px solid ${BO}`, paddingBottom:10, marginBottom:15}},
+        React.createElement('h3', {style:{fontFamily:'Cinzel,serif', color:AU}}, `🎯 Alliance : ${activeGroup.nom} (${activeGroup.joueurs_ids.length}j)`),
+        React.createElement(Btn, {variant:'ghost', small:true, onClick: () => setActiveGroup(null)}, '↩ Retour')
+      ),
+      matchedGames.length === 0 && React.createElement('div', {style:{color:DIM, fontStyle:'italic', textAlign:'center', padding:40}}, 'Hélas, aucun jeu de vos étagères ne supporte exactement ce nombre de convives.'),
+      React.createElement('div', {style:{display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(280px,1fr))', gap:12}},
+        matchedGames.map(g => {
+          const hasImg = g.imageUrl && g.imageUrl.trim();
+          return React.createElement('div', {key:g.id, style:{background:CA, border:`1px solid rgba(0,201,167,${g.pct>50?.25:.05})`, borderRadius:10, padding:14, position:'relative', overflow:'hidden'}},
+            hasImg && React.createElement('div', {style:{position:'absolute', inset:0, backgroundImage:`url(${g.imageUrl})`, backgroundSize:'cover',backgroundPosition:'center', opacity:.08}}),
+            React.createElement('div', {style:{position:'relative'}},
+              React.createElement('div', {style:{display:'flex', justifyContent:'space-between', marginBottom:6}},
+                React.createElement('div', {style:{fontFamily:'Cinzel,serif', fontSize:12, fontWeight:700, color:'#e2ddd5'}}, g.nom),
+                React.createElement('span', {style:{fontSize:12, fontWeight:800, color:g.pct>=70?TE:AU}}, `${g.pct}%`)
+              ),
+              React.createElement('div', {}, g.langue.map(l=>React.createElement(Tag,{key:l,label:l,cat:'langue',small:true})), React.createElement(Tag,{label:`⏱ ${g.temps}min`,cat:'temps',small:true}), React.createElement(Tag,{label:g.theme,cat:'theme',small:true}))
+            )
+          );
+        })
+      )
+    )
+  );
+}
+
 /* ── PAGE RECHERCHE ── */
 function RecherchePage({games,options}){
   const [f,setF]=useState({langue:[],joueurs:[],types:[],mecaniques:[],temps:'',theme:''});
@@ -579,6 +680,7 @@ function App(){
   const [options, setOptions] = useState(OPT);
   const [page, setPage] = useState('collection');
   const [loading, setLoading] = useState(true);
+  const [groups, setGroups] = useState([]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -586,6 +688,8 @@ function App(){
       const { data: gData } = await supabaseClient.from('games').select('*');
       const { data: pData } = await supabaseClient.from('players').select('*');
       const { data: oData, error: oErr } = await supabaseClient.from('app_options').select('*');
+	  const { data: oGroups, error: ogErr } = await supabaseClient.from('app_groups').select('*');
+  if (!ogErr && oGroups) setGroups(oGroups);
       
       if (gData) setGames(gData);
       if (pData) setPlayers(pData);
@@ -631,6 +735,25 @@ function App(){
       showToast('Erreur ajout option : ' + error.message, 'error');
     }
   };
+  
+const saveGroup = async (g) => {
+  const { data, error } = await supabaseClient.from('app_groups').upsert(g).select();
+  if (!error && data) {
+    setGroups(g.id ? groups.map(x => x.id === g.id ? data[0] : x) : [...groups, data[0]]);
+    showToast(g.id ? 'Groupe mis à jour !' : 'Nouveau groupe consigné dans le Cloud !');
+  } else { 
+    showToast('Erreur groupe : ' + (error ? error.message : 'Données introuvables'), 'error'); 
+  }
+};
+
+  const deleteGroup = async (id) => {
+    if (!confirm('Dissoudre ce groupe ?')) return;
+    const { error } = await supabaseClient.from('app_groups').delete().eq('id', id);
+    if (!error) {
+      setGroups(groups.filter(x => x.id !== id));
+      showToast('Groupe dissous.');
+    } else { showToast('Erreur : ' + error.message, 'error'); }
+  };
 
   const handleImport = async (g, p) => {
     setLoading(true);
@@ -657,6 +780,7 @@ function App(){
   const nav=[
     {id:'collection',label:'Collection',icon:'🎲',count:games.length,col:AU,rgb:'232,184,75'},
     {id:'joueurs',label:'Joueurs·euses',icon:'👥',count:players.length,col:VI,rgb:'155,114,245'},
+	{id:'groupes',label:'Groupes',icon:'🛡️',count:groups.length,col:RO,rgb:'255,84,112'},
     {id:'recherche',label:'Recherche',icon:'🔍',count:null,col:TE,rgb:'0,201,167'},
   ];
 
@@ -681,6 +805,7 @@ function App(){
     React.createElement('div',{style:{maxWidth:1300,margin:'0 auto',padding:'22px 20px'}},
       page==='collection'&&React.createElement(CollectionPage,{games,setGames,options,onAddOption:handleAddOption}),
       page==='joueurs'&&React.createElement(JoueursPage,{players,setPlayers,games,options,onAddOption:handleAddOption}),
+	  page==='groupes'&&React.createElement(GroupsPage,{groups,players,games,onSave:saveGroup,onDelete:deleteGroup}),
       page==='recherche'&&React.createElement(RecherchePage,{games,options})
     )
   );
