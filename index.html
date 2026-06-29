@@ -3,7 +3,11 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>🎲 Ludothèque</title>
+<title>Ludothèque</title>
+<link rel="apple-touch-icon" sizes="180x180" href="https://filedn.com/lSU3JiCYfXSzsm195ULFWOH/favicon%20ludotheque/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="https://filedn.com/lSU3JiCYfXSzsm195ULFWOH/favicon%20ludotheque/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="https://filedn.com/lSU3JiCYfXSzsm195ULFWOH/favicon%20ludotheque/favicon-16x16.png">
+<link rel="manifest" href="https://filedn.com/lSU3JiCYfXSzsm195ULFWOH/favicon%20ludotheque/site.webmanifest">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800;900&family=Nunito:wght@400;600;700;800&display=swap"/>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
@@ -445,7 +449,7 @@ function CollectionPage({games,setGames,options,onAddOption}){
     React.createElement('div',{style:{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:20,flexWrap:'wrap',gap:10}},
       React.createElement('div',{},
         React.createElement('div',{style:{fontFamily:'Cinzel,serif',fontSize:24,fontWeight:900,color:AU}},`${games.length} jeux`),
-        React.createElement('div',{style:{fontSize:12,color:DIM,marginTop:2}},'dans ta ludothèque')
+        React.createElement('div',{style:{fontSize:12,color:DIM,marginTop:2}},'dans la ludothèque')
       ),
       React.createElement(Btn,{onClick:()=>setEdit({})},'+ Ajouter un jeu')
     ),
