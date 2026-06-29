@@ -1,0 +1,17 @@
+name: Keep Supabase Alive
+
+on:
+  schedule:
+    # S'exécute automatiquement tous les lundis et jeudis à 10h00 UTC
+    - cron: '0 10 * * 1,4'
+  workflow_dispatch: # Permet de lancer le script manuellement pour tester
+
+jobs:
+  ping-supabase:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Requête vers l'API Supabase
+        run: |
+          curl -X GET "https://vjeomepcepthulzygqfv.supabase.co/rest/v1/games?select=id&limit=1" \
+          -H "apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZqZW9tZXBjZXB0aHVsenlncWZ2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA5MjkwOTMsImV4cCI6MjA5NjUwNTA5M30.805tzjwUxewEuSWkBOgmqVBGf4jzrKHaxGCsdyjLDmg" \
+          -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZqZW9tZXBjZXB0aHVsenlncWZ2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA5MjkwOTMsImV4cCI6MjA5NjUwNTA5M30.805tzjwUxewEuSWkBOgmqVBGf4jzrKHaxGCsdyjLDmg"
