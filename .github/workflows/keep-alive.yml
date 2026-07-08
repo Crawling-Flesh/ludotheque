@@ -2,16 +2,24 @@ name: Keep Supabase Alive
 
 on:
   schedule:
-    # S'exécute automatiquement tous les lundis et jeudis à 10h00 UTC
-    - cron: '0 10 * * 1,4'
-  workflow_dispatch: # Permet de lancer le script manuellement pour tester
+    # S'exécute automatiquement TOUS LES JOURS à 10h00 UTC
+    - cron: '0 10 * * *'
+  workflow_dispatch:
 
 jobs:
   ping-supabase:
     runs-on: ubuntu-latest
     steps:
-      - name: Requête vers l'API Supabase
+      - name: Écriture et Nettoyage pour forcer l'activité
         run: |
-          curl -X GET "https://vjeomepcepthulzygqfv.supabase.co/rest/v1/games?select=id&limit=1" \
+          echo "Insertion d'une ligne temporaire (réveil forcé)..."
+          curl -X POST "https://vjeomepcepthulzygqfv.supabase.co/rest/v1/app_options" \
+          -H "apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZqZW9tZXBjZXB0aHVsenlncWZ2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA5MjkwOTMsImV4cCI6MjA5NjUwNTA5M30.805tzjwUxewEuSWkBOgmqVBGf4jzrKHaxGCsdyjLDmg" \
+          -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZqZW9tZXBjZXB0aHVsenlncWZ2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA5MjkwOTMsImV4cCI6MjA5NjUwNTA5M30.805tzjwUxewEuSWkBOgmqVBGf4jzrKHaxGCsdyjLDmg" \
+          -H "Content-Type: application/json" \
+          -d '{"categorie": "system", "valeur": "keep_alive"}'
+          
+          echo "Suppression immédiate de la ligne (nettoyage)..."
+          curl -X DELETE "https://vjeomepcepthulzygqfv.supabase.co/rest/v1/app_options?categorie=eq.system&valeur=eq.keep_alive" \
           -H "apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZqZW9tZXBjZXB0aHVsenlncWZ2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA5MjkwOTMsImV4cCI6MjA5NjUwNTA5M30.805tzjwUxewEuSWkBOgmqVBGf4jzrKHaxGCsdyjLDmg" \
           -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZqZW9tZXBjZXB0aHVsenlncWZ2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA5MjkwOTMsImV4cCI6MjA5NjUwNTA5M30.805tzjwUxewEuSWkBOgmqVBGf4jzrKHaxGCsdyjLDmg"
