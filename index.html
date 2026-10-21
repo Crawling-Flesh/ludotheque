@@ -678,6 +678,31 @@ function RecherchePage({games,options}){
 }
 
 /* ── APP ── */
+/* ── ÉCRAN DE CONNEXION ── */
+function LoginScreen(){
+  const [email,setEmail]=useState('');
+  const [password,setPassword]=useState('');
+  const [error,setError]=useState(null);
+  const [busy,setBusy]=useState(false);
+  const submit=async(e)=>{
+    e.preventDefault();
+    setBusy(true);setError(null);
+    const {error}=await supabaseClient.auth.signInWithPassword({email,password});
+    if(error)setError(error.message);
+    setBusy(false);
+  };
+  const inputStyle={background:SU,color:'#e2ddd5',border:`1px solid ${BO}`,borderRadius:8,padding:'9px 12px',fontSize:14,width:'100%',outline:'none',fontFamily:'Nunito,sans-serif'};
+  return React.createElement('div',{style:{minHeight:'100vh',background:BG,display:'flex',alignItems:'center',justifyContent:'center',padding:20}},
+    React.createElement('form',{onSubmit:submit,style:{background:CA,border:`1px solid ${BO}`,borderRadius:14,padding:'28px 26px',width:'100%',maxWidth:340,display:'flex',flexDirection:'column',gap:12}},
+      React.createElement('div',{style:{fontFamily:'Cinzel,serif',fontWeight:900,fontSize:20,color:AU,textAlign:'center',marginBottom:6}},'🎲 Ludothèque'),
+      React.createElement('input',{type:'email',value:email,onChange:e=>setEmail(e.target.value),placeholder:'Email',autoComplete:'username',required:true,style:inputStyle}),
+      React.createElement('input',{type:'password',value:password,onChange:e=>setPassword(e.target.value),placeholder:'Mot de passe',autoComplete:'current-password',required:true,style:inputStyle}),
+      error&&React.createElement('div',{style:{color:RO,fontSize:12,fontWeight:700}},error),
+      React.createElement('button',{type:'submit',disabled:busy,style:{background:AU,color:BG,border:'none',borderRadius:8,padding:'10px 18px',fontSize:14,fontWeight:800,cursor:busy?'wait':'pointer',fontFamily:'Nunito,sans-serif',opacity:busy?.6:1}},busy?'Connexion...':'Se connecter')
+    )
+  );
+}
+
 function App(){
   const [games, setGames] = useState([]);
   const [players, setPlayers] = useState([]);
@@ -685,6 +710,8 @@ function App(){
   const [page, setPage] = useState('collection');
   const [loading, setLoading] = useState(true);
   const [groups, setGroups] = useState([]);
+  const [session, setSession] = useState(null);
+  const [authReady, setAuthReady] = useState(false);
 
   const fetchData = async () => {
     setLoading(true);
@@ -718,9 +745,26 @@ function App(){
     }
   };
 
+  // Suivi de la session de connexion
   useEffect(() => {
-    fetchData();
+    supabaseClient.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setAuthReady(true);
+    });
+    const { data: { subscription } } = supabaseClient.auth.onAuthStateChange((_event, s) => {
+      setSession(s);
+    });
+    return () => subscription.unsubscribe();
   }, []);
+
+  // Données chargées uniquement une fois connectée (l'id ne change pas au rafraîchissement du jeton)
+  useEffect(() => {
+    if (session) {
+      fetchData();
+    } else {
+      setGames([]); setPlayers([]); setGroups([]);
+    }
+  }, [session?.user?.id]);
 
   const handleAddOption = async (categorie, valeur) => {
     const stringVal = String(valeur);
@@ -779,6 +823,9 @@ const saveGroup = async (g) => {
     showToast('Ludothèque synchronisée depuis le Cloud !', 'success');
   };
 
+  if (!authReady) return React.createElement('div', {style: {color: AU, textAlign: 'center', paddingTop: '100px', fontFamily: 'Cinzel, serif', fontSize: '18px'}}, React.createElement('div', {className: 'spinner'}));
+  if (!session) return React.createElement(LoginScreen);
+
   if (loading) return React.createElement('div', {style: {color: AU, textAlign: 'center', paddingTop: '100px', fontFamily: 'Cinzel, serif', fontSize: '18px'}}, React.createElement('div', {className: 'spinner', style: {marginRight: '10px'}}), 'Invocation de la ludothèque Crawbourgeoise...');
 
   const nav=[
@@ -803,7 +850,8 @@ const saveGroup = async (g) => {
       React.createElement('div',{style:{display:'flex',gap:5,alignItems:'center',flexWrap:'wrap'}},
         React.createElement('button',{onClick:handleExport,title:'Exporter en JSON (sauvegarde externe)',style:{background:'rgba(0,201,167,.1)',color:TE,border:'1px solid rgba(0,201,167,.3)',borderRadius:8,padding:'5px 10px',fontSize:11,fontWeight:700,cursor:'pointer',fontFamily:'Nunito,sans-serif'}},'💾 Exporter'),
         React.createElement('button',{onClick:()=>importJSON(handleImport),title:'Importer et écraser la base Cloud',style:{background:'rgba(155,114,245,.1)',color:VI,border:'1px solid rgba(155,114,245,.3)',borderRadius:8,padding:'5px 10px',fontSize:11,fontWeight:700,cursor:'pointer',fontFamily:'Nunito,sans-serif'}},'📂 Importer'),
-        React.createElement('button',{onClick:handleRefresh,title:'Synchroniser avec le Cloud',style:{background:'rgba(96,165,250,.1)',color:'#60a5fa',border:'1px solid rgba(96,165,250,.3)',borderRadius:8,padding:'5px 10px',fontSize:11,fontWeight:700,cursor:'pointer',fontFamily:'Nunito,sans-serif'}},'↻ Actualiser')
+        React.createElement('button',{onClick:handleRefresh,title:'Synchroniser avec le Cloud',style:{background:'rgba(96,165,250,.1)',color:'#60a5fa',border:'1px solid rgba(96,165,250,.3)',borderRadius:8,padding:'5px 10px',fontSize:11,fontWeight:700,cursor:'pointer',fontFamily:'Nunito,sans-serif'}},'↻ Actualiser'),
+        React.createElement('button',{onClick:()=>supabaseClient.auth.signOut(),title:'Se déconnecter',style:{background:'rgba(255,84,112,.08)',color:RO,border:'1px solid rgba(255,84,112,.3)',borderRadius:8,padding:'5px 10px',fontSize:11,fontWeight:700,cursor:'pointer',fontFamily:'Nunito,sans-serif'}},'🔒 Déconnexion')
       )
     ),
     React.createElement('div',{style:{maxWidth:1300,margin:'0 auto',padding:'22px 20px'}},
